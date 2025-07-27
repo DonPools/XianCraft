@@ -19,6 +19,7 @@ public class GameMain : Game
     private SequentialSystem<SpriteBatch> _renderSystems;
 
     private EnitityManager _entityManager;
+    private SpriteFont _spriteFont;
 
     public GameMain()
     {
@@ -38,7 +39,8 @@ public class GameMain : Game
 
     protected override void LoadContent()
     {
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
+        _spriteFont = Content.Load<SpriteFont>("simsun");
+        _spriteBatch = new SpriteBatch(GraphicsDevice);        
 
         _updateSystems = new SequentialSystem<float>(
             new CameraSystem(_world, GraphicsDevice),
@@ -46,7 +48,8 @@ public class GameMain : Game
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(
-            new WorldRendererSystem(_world, GraphicsDevice)
+            new WorldRendererSystem(_world, GraphicsDevice),
+            new StatUISystem(_world, GraphicsDevice, _spriteFont)
         );
     }
 
