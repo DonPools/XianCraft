@@ -66,11 +66,14 @@ public class StatUISystem: ISystem<SpriteBatch>
     private string BuildDebugString()
     {
         var camera = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0].Get<CameraComponent>();
+        var mouseInput = _world.GetEntities().With<MouseInput>().AsSet().GetEntities()[0].Get<MouseInput>();
         // 这里可以构建调试信息字符串
         var debugInfo = $"实体数量: {_world.GetEntities().AsSet().Count}\n" +
-                        $"相机位置: {camera.Position.ToString()}\n" +
+                        $"相机位置: {camera.Position.X:F1}, {camera.Position.Y:F1}\n" +
                         $"相机缩放: {camera.Zoom}\n" +
-                        $"Viewport: {camera.ViewportWidth} x {camera.ViewportHeight}";
+                        $"Viewport: {camera.ViewportWidth} x {camera.ViewportHeight}\n" +
+                        $"鼠标位置: {mouseInput.Position.X:F1}, {mouseInput.Position.Y:F1}\n" +
+                        $"鼠标世界位置: {mouseInput.WorldPosition.X:F1}, {mouseInput.WorldPosition.Y:F1}";
         return debugInfo;
     }
 

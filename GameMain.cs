@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using MonoGame.Extended.Tiled;
 using DefaultEcs;
 using DefaultEcs.System;
 
@@ -20,6 +21,7 @@ public class GameMain : Game
 
     private EnitityManager _entityManager;
     private SpriteFont _spriteFont;
+    private TiledMap _metaMap;
 
     public GameMain()
     {
@@ -42,15 +44,17 @@ public class GameMain : Game
     protected override void LoadContent()
     {
         _spriteFont = Content.Load<SpriteFont>("simsun");
+        _metaMap = Content.Load<TiledMap>("Tilemap/meta");
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
 
         _updateSystems = new SequentialSystem<float>(
             new CameraSystem(_world, GraphicsDevice),
+            new MouseInputSystem(_world, _metaMap),
             new WorldGenerationSystem(_world)
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(
-            new WorldRendererSystem(_world, GraphicsDevice, Content),
+            new WorldRendererSystem(_world, GraphicsDevice, _metaMap),
             new StatUISystem(_world, GraphicsDevice, _spriteFont)
         );
     }

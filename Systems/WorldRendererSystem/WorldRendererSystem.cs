@@ -1,4 +1,3 @@
-
 using DefaultEcs;
 using DefaultEcs.System;
 using Microsoft.Xna.Framework.Graphics;
@@ -35,14 +34,14 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
     private int _mapOffsetX = 0;
     private int _mapOffsetY = 0;
 
-    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, ContentManager content)
+    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap)
     {
         _world = world;
         _cameraEntity = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0];
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
+        _metaMap = metaMap;
 
-
-        LoadMetaTiles(_metaMap = content.Load<TiledMap>("Tilemap/meta"));
+        LoadMetaTiles(metaMap);
 
         BuildTiledMap();
     }
@@ -167,6 +166,7 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
             tiledMap.AddTileset(tileset, 0);
         }
 
+        // 这一步是最耗时的。
         _mapRenderer.LoadMap(tiledMap);
 
         stopwatch.Stop();
@@ -179,10 +179,10 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
 
         var camera = _cameraEntity.Get<CameraComponent>();
         
-        var mapOffset = TileToScreenCoords(
+        var mapOffset = Helper.TileToScreenCoords(
             _mapOffsetX, _mapOffsetY,
             _metaMap.TileWidth, _metaMap.TileHeight
-        );
+        );        
         var viewportOffset = new Vector2(
             camera.ViewportWidth / 2f,
             camera.ViewportHeight / 2f - 9f * _metaMap.TileHeight
@@ -206,12 +206,6 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         spriteBatch.End();
     }
 
-    static Vector2 TileToScreenCoords(int tileX, int tileY, int tileWidth, int tileHeight)
-    {
-        float screenX = (tileX - tileY) * tileWidth / 2f;
-        float screenY = (tileX + tileY) * tileHeight / 2f;
-        return new Vector2(screenX, screenY);
-    }
 
 
     public void Dispose()

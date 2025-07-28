@@ -20,8 +20,28 @@ public class EnitityManager
         return entity;
     }
 
+    public Entity CreateMouseInputEntity()
+    {
+        var entity = _world.CreateEntity();
+        entity.Set(new MouseInput(
+            Vector2.Zero,
+            Vector2.Zero,
+            false,
+            false
+        ));
+        return entity;
+    }
+
+    public Entity CreateWorldConfigEntity(int tileWidth, int tileHeight)
+    {
+        var entity = _world.CreateEntity();
+        entity.Set(new WorldConfig());
+        return entity;
+    }
+
     public void Initialize()
     {
         CreateCameraEntity();
+        CreateMouseInputEntity();
     }
 }
