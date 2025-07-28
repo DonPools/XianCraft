@@ -2,20 +2,93 @@
 using DefaultEcs;
 using DefaultEcs.System;
 using Microsoft.Xna.Framework.Graphics;
+using XianCraft.Components;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
+using MonoGame.Extended.Tiled;
+using MonoGame.Extended.Tiled.Renderers;
+using System;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace XianCraft.Systems;
+
+public class MetaTile
+{
+    public string Name { get; set; }
+    public uint GlobalIdentifier { get; set; }
+    public string Layer { get; set; }
+}
 
 public class WorldRendererSystem : ISystem<SpriteBatch>
 {
     private readonly World _world;
-    private readonly GraphicsDevice _graphicsDevice;
     private bool _isEnabled = true;
 
-    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice)
+    private Entity _cameraEntity;
+    private EntitySet _chunkEntities;
+
+    private TiledMap _metaMap;
+    private TiledMapRenderer _mapRenderer;
+    private Dictionary<string, MetaTile> _metaTiles = new Dictionary<string, MetaTile>();
+    private int _tileOffsetX = 0;
+    private int _tileOffsetY = 0;
+
+    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, ContentManager content)
     {
         _world = world;
-        _graphicsDevice = graphicsDevice;
+        _cameraEntity = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0];
+        _mapRenderer = new TiledMapRenderer(graphicsDevice);
+
+
+        LoadMetaTiles(_metaMap = content.Load<TiledMap>("Tilemap/meta"));
+
+        BuildTiledMap();
+    }
+
+    private void LoadMetaTiles(TiledMap metaMap)
+    {
+        var defLayer = metaMap.GetLayer<TiledMapObjectLayer>("Definitions");
+        foreach (var objTile in defLayer.Objects)
+        {
+            // Tiled 给的坐标比较怪，直接用这个进行转换, 时间出真知。
+            var x = (int)Math.Floor(objTile.Position.X / metaMap.TileHeight);
+            var y = (int)Math.Floor(objTile.Position.Y / metaMap.TileHeight);
+
+            foreach (var tileLayer in metaMap.TileLayers)
+            {
+                for (int i = 0; i < tileLayer.Tiles.Length; i++)
+                {
+                    var tile = tileLayer.Tiles[i];
+                    if (tile.X == x && tile.Y == y)
+                    {
+                        if (tile.GlobalIdentifier > 0)
+                        {
+                            var metaTile = new MetaTile
+                            {
+                                Name = objTile.Name,
+                                GlobalIdentifier = (uint)tile.GlobalIdentifier,
+                                Layer = tileLayer.Name
+                            };
+                            _metaTiles[objTile.Name] = metaTile;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 检查所有 TerrainType 是否都已加载
+        var missingTypes = new List<string>();
+        foreach (var type in Enum.GetValues(typeof(TerrainType)))
+        {
+            string name = type.ToString();
+            if (!_metaTiles.ContainsKey(name))
+                missingTypes.Add(name);
+        }
+
+        if (missingTypes.Count > 0)
+            throw new Exception($"Missing meta tiles for TerrainType: {string.Join(", ", missingTypes)}");
     }
 
     public bool IsEnabled
@@ -24,16 +97,97 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         set => _isEnabled = value;
     }
 
+    public void BuildTiledMap()
+    {
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        var chunkEntities = _world.GetEntities()
+            .With<ChunkComponent>()
+            .AsSet();
+
+        var minX = int.MaxValue;
+        var minY = int.MaxValue;
+        var maxX = int.MinValue;
+        var maxY = int.MinValue;
+        for (int i = 0; i < chunkEntities.Count; i++)
+        {
+            var entity = chunkEntities.GetEntities()[i];
+            var chunk = entity.Get<ChunkComponent>();
+            var chunkPos = chunk.Position;
+            minX = Math.Min(minX, (int)chunkPos.X);
+            minY = Math.Min(minY, (int)chunkPos.Y);
+            maxX = Math.Max(maxX, (int)chunkPos.X);
+            maxY = Math.Max(maxY, (int)chunkPos.Y);
+        }
+
+        _tileOffsetX = -minX * Const.ChunkSize;
+        _tileOffsetY = -minY * Const.ChunkSize;
+        var width = (maxX - minX + 1) * Const.ChunkSize;
+        var height = (maxY - minY + 1) * Const.ChunkSize;
+        Console.WriteLine($"Chunk bounds: ({minX}, {minY}) to ({maxX}, {maxY})");
+        Console.WriteLine($"Tile offset: ({_tileOffsetX}, {_tileOffsetY})");
+        Console.WriteLine($"Map size: {width}x{height}");
+
+        var tiledMap = new TiledMap(
+            _metaMap.Name, _metaMap.Type,
+            width, height,
+            _metaMap.TileWidth, _metaMap.TileHeight,
+            _metaMap.RenderOrder, _metaMap.Orientation, _metaMap.BackgroundColor
+        );
+
+        foreach (var tileLayer in _metaMap.TileLayers)
+        {
+            var newLayer = new TiledMapTileLayer(tileLayer.Name, tileLayer.Type, width, height, tiledMap.TileWidth, tiledMap.TileHeight);
+            for (int i = 0; i < chunkEntities.Count; i++)
+            {
+                var entity = chunkEntities.GetEntities()[i];
+                var chunk = entity.Get<ChunkComponent>();
+                var chunkPos = chunk.Position;
+                for (int x = 0; x < Const.ChunkSize; x++)
+                {
+                    for (int y = 0; y < Const.ChunkSize; y++)
+                    {
+                        var terrainType = chunk.TerrainData[x, y];
+                        if (_metaTiles.TryGetValue(terrainType.ToString(), out var metaTile))
+                        {
+                            if (metaTile.Layer != tileLayer.Name)
+                                continue; // 只添加当前层的瓦片
+                            var tileX = x + (int)chunkPos.X * Const.ChunkSize + _tileOffsetX;
+                            var tileY = y + (int)chunkPos.Y * Const.ChunkSize + _tileOffsetY;
+                            newLayer.SetTile((ushort)tileX, (ushort)tileY, metaTile.GlobalIdentifier);
+                        }
+                    }
+                }
+            }
+            tiledMap.AddLayer(newLayer);
+        }
+
+        foreach (var tileset in _metaMap.Tilesets)
+        {
+            // FIXME: 这里的 GlobalIdentifier 可能需要调整
+            tiledMap.AddTileset(tileset, 0);
+        }
+
+        _mapRenderer.LoadMap(tiledMap);
+
+        stopwatch.Stop();
+        Console.WriteLine($"BuildTiledMap 耗时: {stopwatch.ElapsedMilliseconds} ms");
+    }
+
     public void Update(SpriteBatch spriteBatch)
     {
         if (!_isEnabled) return;
 
-        spriteBatch.Begin();
-        
-        // Render logic goes here, e.g., drawing entities with specific components
-        
-        spriteBatch.End();
+        var camera = _cameraEntity.Get<CameraComponent>();
+        Matrix viewMatrix2 = Matrix.CreateTranslation(new Vector3(-camera.Position, 0.0f)) *
+           Matrix.CreateScale(camera.Zoom, camera.Zoom, 1);
+
+        Matrix projectionMatrix2 = Matrix.CreateOrthographicOffCenter(0f, camera.ViewportWidth, camera.ViewportHeight, 0f, 0f, -1f);
+
+        _mapRenderer.Draw(ref viewMatrix2, ref projectionMatrix2);
     }
+
 
     public void Dispose()
     {

@@ -48,7 +48,7 @@ public class GameMain : Game
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(
-            new WorldRendererSystem(_world, GraphicsDevice),
+            new WorldRendererSystem(_world, GraphicsDevice, Content),
             new StatUISystem(_world, GraphicsDevice, _spriteFont)
         );
     }
