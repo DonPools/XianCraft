@@ -10,6 +10,7 @@ using MonoGame.Extended.Tiled.Renderers;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using MonoGame.Extended;
 
 namespace XianCraft.Systems;
 
@@ -31,8 +32,8 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
     private TiledMap _metaMap;
     private TiledMapRenderer _mapRenderer;
     private Dictionary<string, MetaTile> _metaTiles = new Dictionary<string, MetaTile>();
-    private int _tileOffsetX = 0;
-    private int _tileOffsetY = 0;
+    private int _mapOffsetX = 0;
+    private int _mapOffsetY = 0;
 
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, ContentManager content)
     {
@@ -121,13 +122,10 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
             maxY = Math.Max(maxY, (int)chunkPos.Y);
         }
 
-        _tileOffsetX = -minX * Const.ChunkSize;
-        _tileOffsetY = -minY * Const.ChunkSize;
+        _mapOffsetX = -minX * Const.ChunkSize;
+        _mapOffsetY = -minY * Const.ChunkSize;
         var width = (maxX - minX + 1) * Const.ChunkSize;
         var height = (maxY - minY + 1) * Const.ChunkSize;
-        Console.WriteLine($"Chunk bounds: ({minX}, {minY}) to ({maxX}, {maxY})");
-        Console.WriteLine($"Tile offset: ({_tileOffsetX}, {_tileOffsetY})");
-        Console.WriteLine($"Map size: {width}x{height}");
 
         var tiledMap = new TiledMap(
             _metaMap.Name, _metaMap.Type,
@@ -153,8 +151,8 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
                         {
                             if (metaTile.Layer != tileLayer.Name)
                                 continue; // 只添加当前层的瓦片
-                            var tileX = x + (int)chunkPos.X * Const.ChunkSize + _tileOffsetX;
-                            var tileY = y + (int)chunkPos.Y * Const.ChunkSize + _tileOffsetY;
+                            var tileX = x + (int)chunkPos.X * Const.ChunkSize + _mapOffsetX;
+                            var tileY = y + (int)chunkPos.Y * Const.ChunkSize + _mapOffsetY;
                             newLayer.SetTile((ushort)tileX, (ushort)tileY, metaTile.GlobalIdentifier);
                         }
                     }
@@ -180,12 +178,39 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         if (!_isEnabled) return;
 
         var camera = _cameraEntity.Get<CameraComponent>();
-        Matrix viewMatrix2 = Matrix.CreateTranslation(new Vector3(-camera.Position, 0.0f)) *
-           Matrix.CreateScale(camera.Zoom, camera.Zoom, 1);
+        
+        var mapOffset = TileToScreenCoords(
+            _mapOffsetX, _mapOffsetY,
+            _metaMap.TileWidth, _metaMap.TileHeight
+        );
+        var viewportOffset = new Vector2(
+            camera.ViewportWidth / 2f,
+            camera.ViewportHeight / 2f - 9f * _metaMap.TileHeight
+        );
+        Matrix viewMatrix2 =
+            Matrix.CreateTranslation(new Vector3(-camera.Position - mapOffset + viewportOffset, 0.0f)) *
+            Matrix.CreateScale(camera.Zoom, camera.Zoom, 1) *
+            Matrix.CreateTranslation(new Vector3(
+                (1 - camera.Zoom) * camera.ViewportWidth / 2, (1 - camera.Zoom) * camera.ViewportHeight / 2, 0.0f));
 
         Matrix projectionMatrix2 = Matrix.CreateOrthographicOffCenter(0f, camera.ViewportWidth, camera.ViewportHeight, 0f, 0f, -1f);
-
         _mapRenderer.Draw(ref viewMatrix2, ref projectionMatrix2);
+
+        spriteBatch.Begin();
+        spriteBatch.DrawCircle(
+            new Vector2(camera.ViewportWidth / 2f, camera.ViewportHeight / 2f),
+            5f,
+            32,
+            Color.Red
+        );
+        spriteBatch.End();
+    }
+
+    static Vector2 TileToScreenCoords(int tileX, int tileY, int tileWidth, int tileHeight)
+    {
+        float screenX = (tileX - tileY) * tileWidth / 2f;
+        float screenY = (tileX + tileY) * tileHeight / 2f;
+        return new Vector2(screenX, screenY);
     }
 
 

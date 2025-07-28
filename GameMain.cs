@@ -24,6 +24,8 @@ public class GameMain : Game
     public GameMain()
     {
         _graphics = new GraphicsDeviceManager(this);
+        _graphics.PreferredBackBufferWidth = 1200;
+        _graphics.PreferredBackBufferHeight = 800;
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
     }
