@@ -4,6 +4,7 @@ using DefaultEcs.System;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using System;
 
 namespace XianCraft.Systems;
 
@@ -67,13 +68,30 @@ public class StatUISystem: ISystem<SpriteBatch>
     {
         var camera = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0].Get<CameraComponent>();
         var mouseInput = _world.GetEntities().With<MouseInput>().AsSet().GetEntities()[0].Get<MouseInput>();
-        // 这里可以构建调试信息字符串
+
+        // 内存和GC信息
+        long totalMemory = GC.GetTotalMemory(false);
+        var memoryInfo = GC.GetGCMemoryInfo();
+        int gc0 = GC.CollectionCount(0);
+        int gc1 = GC.CollectionCount(1);
+        int gc2 = GC.CollectionCount(2);
+
+        // 进程信息
+        var process = System.Diagnostics.Process.GetCurrentProcess();
+        long workingSet = process.WorkingSet64;
+        int handleCount = process.HandleCount;
+
         var debugInfo = $"实体数量: {_world.GetEntities().AsSet().Count}\n" +
                         $"相机位置: {camera.Position.X:F1}, {camera.Position.Y:F1}\n" +
                         $"相机缩放: {camera.Zoom}\n" +
                         $"Viewport: {camera.ViewportWidth} x {camera.ViewportHeight}\n" +
                         $"鼠标位置: {mouseInput.Position.X:F1}, {mouseInput.Position.Y:F1}\n" +
-                        $"鼠标世界位置: {mouseInput.WorldPosition.X:F1}, {mouseInput.WorldPosition.Y:F1}";
+                        $"鼠标世界位置: {mouseInput.WorldPosition.X:F1}, {mouseInput.WorldPosition.Y:F1}\n" +
+                        $"\n[内存/GC]" +
+                        $"\n托管堆内存: {totalMemory / 1024 / 1024:F2} MB" +
+                        $"\nGC次数: Gen0={gc0}, Gen1={gc1}, Gen2={gc2}" +
+                        $"\n工作集: {workingSet / 1024 / 1024:F2} MB" +
+                        $"\n句柄数: {handleCount}";
         return debugInfo;
     }
 
