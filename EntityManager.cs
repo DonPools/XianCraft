@@ -16,7 +16,7 @@ public class EnitityManager
     public Entity CreateCameraEntity()
     {
         var entity = _world.CreateEntity();
-        entity.Set(new CameraComponent(new Vector2(0, 0), 1.0f));
+        entity.Set(new CameraComponent(new Vector2(0, 0), 4.0f));
         return entity;
     }
 
@@ -29,13 +29,6 @@ public class EnitityManager
             false,
             false
         ));
-        return entity;
-    }
-
-    public Entity CreateWorldConfigEntity(int tileWidth, int tileHeight)
-    {
-        var entity = _world.CreateEntity();
-        entity.Set(new WorldConfig());
         return entity;
     }
 

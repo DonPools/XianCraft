@@ -50,7 +50,7 @@ public class GameMain : Game
         _updateSystems = new SequentialSystem<float>(
             new CameraSystem(_world, GraphicsDevice),
             new MouseInputSystem(_world, _metaMap),
-            new WorldGenerationSystem(_world)
+            new WorldGenerationSystem(_world, _metaMap)
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(

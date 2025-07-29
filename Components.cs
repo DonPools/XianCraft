@@ -35,11 +35,6 @@ public struct ChunkComponent
     }
 }
 
-public struct WorldConfig {
-    public int TileWidth;
-    public int TileHeight;
-}
-
 // 鼠标输入组件
 public struct MouseInput
 {

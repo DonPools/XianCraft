@@ -4,6 +4,8 @@ using DefaultEcs;
 using DefaultEcs.System;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
+using System.Collections.Generic;
+using MonoGame.Extended.Tiled;
 
 namespace XianCraft.Systems;
 
@@ -11,7 +13,11 @@ public class WorldGenerationSystem : ISystem<float>
 {
     private readonly World _world;
     private bool _isEnabled = true;
+    private TiledMap _metaMap;
+
     private Entity _cameraEntity;
+    private readonly HashSet<Point> _loadedChunks;
+    private readonly Dictionary<Point, Entity> _chunkEntities;
 
     public bool IsEnabled
     {
@@ -19,42 +25,110 @@ public class WorldGenerationSystem : ISystem<float>
         set => _isEnabled = value;
     }
 
-    public WorldGenerationSystem(World world)
+    public WorldGenerationSystem(World world, TiledMap metaMap)
     {
         _world = world;
-        _cameraEntity = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0];
+        _metaMap = metaMap;
+        _loadedChunks = new HashSet<Point>();
+        _chunkEntities = new Dictionary<Point, Entity>();
 
-        buildDebugChunk();
+        _cameraEntity = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0];
     }
 
-    private void buildDebugChunk()
+    public Entity BuildChunk(int x, int y)
     {
-        // 以 0,0 为中心，内圈 dirt，外圈 water
-        for (var x = -2; x < 3; x++)
+        var position = new Vector2(x, y);
+        var terrainData = new TerrainType[Const.ChunkSize, Const.ChunkSize];
+        for (int i = 0; i < Const.ChunkSize; i++)
         {
-            for (var y = -2; y < 3; y++)
+            for (int j = 0; j < Const.ChunkSize; j++)
             {
-                var position = new Vector2(x, y);
-                var terrainData = new TerrainType[Const.ChunkSize, Const.ChunkSize];
-                for (int i = 0; i < Const.ChunkSize; i++)
-                {
-                    for (int j = 0; j < Const.ChunkSize; j++)
-                    {
-                        var posX = x * Const.ChunkSize + i;
-                        var posY = y * Const.ChunkSize + j;
-                        // 计算到中心的曼哈顿距离
-                        int dist = Math.Max(Math.Abs(posX - 8), Math.Abs(posY - 8));
-                        terrainData[i, j] = dist % 2 == 0 ? TerrainType.Dirt : terrainData[i, j] = TerrainType.Water;
-                    }
-                }
-                _world.CreateEntity().Set(new ChunkComponent(position, terrainData));
+                var posX = x * Const.ChunkSize + i;
+                var posY = y * Const.ChunkSize + j;
+                // 计算到中心的曼哈顿距离
+                int dist = Math.Max(Math.Abs(posX - 8), Math.Abs(posY - 8));
+                terrainData[i, j] = dist % 2 == 0 ? TerrainType.Dirt : terrainData[i, j] = TerrainType.Water;
             }
         }
+
+        var entity = _world.CreateEntity();
+        entity.Set(new ChunkComponent(position, terrainData));
+
+        return entity;
+    }
+
+    private static double CalculateChunkDistance(Point from, Point to)
+    {
+        return Math.Sqrt(Math.Pow(to.X - from.X, 2) + Math.Pow(to.Y - from.Y, 2));
+    }
+
+    private void UpdateChunks()
+    {
+        var camera = _cameraEntity.Get<CameraComponent>();
+        var cameraTile = Helper.ScreenToTileCoords(
+            camera.Position.X, camera.Position.Y, _metaMap.TileWidth, _metaMap.TileHeight
+        );
+
+        var cameraChunk = new Point(
+            (int)Math.Floor(cameraTile.X / Const.ChunkSize),
+            (int)Math.Floor(cameraTile.Y / Const.ChunkSize)
+        );
+        var chunksToLoad = GetChunksInRadius(cameraChunk, 4, true);
+        foreach (var chunkPos in chunksToLoad)
+        {
+            var entity = BuildChunk(chunkPos.X, chunkPos.Y);
+            _loadedChunks.Add(chunkPos);
+            _chunkEntities[chunkPos] = entity;
+        }
+
+        var chunksToUnload = new List<Point>();
+        foreach (var loadedChunk in _loadedChunks)
+        {
+            double distance = CalculateChunkDistance(cameraChunk, loadedChunk);
+            if (distance > 4)
+            {
+                chunksToUnload.Add(loadedChunk);
+            }
+        }
+        
+        foreach (var chunkPos in chunksToUnload)
+        {
+           if (_chunkEntities.TryGetValue(chunkPos, out var entity))
+            {
+                entity.Dispose();
+                _chunkEntities.Remove(chunkPos);
+            }
+            _loadedChunks.Remove(chunkPos);
+        }
+    }
+
+    /// <summary>
+    /// 获取指定中心点和半径内的所有区块
+    /// </summary>
+    private List<Point> GetChunksInRadius(Point centerChunk, double radius, bool excludeLoaded = false)
+    {
+        var chunks = new List<Point>();
+
+        for (int x = centerChunk.X - (int)Math.Ceiling(radius); x <= centerChunk.X + (int)Math.Ceiling(radius); x++)
+        {
+            for (int y = centerChunk.Y - (int)Math.Ceiling(radius); y <= centerChunk.Y + (int)Math.Ceiling(radius); y++)
+            {
+                var chunkPos = new Point(x, y);
+                double distance = CalculateChunkDistance(centerChunk, chunkPos);
+
+                if (distance <= radius && (!excludeLoaded || !_loadedChunks.Contains(chunkPos)))
+                {
+                    chunks.Add(chunkPos);
+                }
+            }
+        }
+
+        return chunks;
     }
 
     public void Update(float deltaTime)
     {
-        var camera = _cameraEntity.Get<CameraComponent>();
+        UpdateChunks();
     }
 
     public void Dispose()

@@ -26,7 +26,7 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
     private bool _isEnabled = true;
 
     private Entity _cameraEntity;
-    private EntitySet _chunkEntities;
+    private HashSet<Point> _loadedChunks = new HashSet<Point>();
 
     private TiledMap _metaMap;
     private TiledMapRenderer _mapRenderer;
@@ -42,8 +42,6 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         _metaMap = metaMap;
 
         LoadMetaTiles(metaMap);
-
-        BuildTiledMap();
     }
 
     private void LoadMetaTiles(TiledMap metaMap)
@@ -97,14 +95,10 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         set => _isEnabled = value;
     }
 
-    public void BuildTiledMap()
+    public void BuildTiledMap(EntitySet chunkEntities)
     {
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        var chunkEntities = _world.GetEntities()
-            .With<ChunkComponent>()
-            .AsSet();
 
         var minX = int.MaxValue;
         var minY = int.MaxValue;
@@ -173,16 +167,39 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         Console.WriteLine($"BuildTiledMap 耗时: {stopwatch.ElapsedMilliseconds} ms");
     }
 
+    public void SyncChunks()
+    {
+        var chunkEntities = _world.GetEntities()
+            .With<ChunkComponent>()
+            .AsSet();
+
+        var currentChunks = new HashSet<Point>();
+        foreach (var entity in chunkEntities.GetEntities())
+        {
+            var chunk = entity.Get<ChunkComponent>();
+            var chunkPos = new Point((int)chunk.Position.X, (int)chunk.Position.Y);
+            currentChunks.Add(chunkPos);
+        }
+
+        if (currentChunks.SetEquals(_loadedChunks))
+            return; // 没有变化
+
+        _loadedChunks = currentChunks;
+        BuildTiledMap(chunkEntities);
+    }
+
     public void Update(SpriteBatch spriteBatch)
     {
         if (!_isEnabled) return;
 
+        SyncChunks();
+
         var camera = _cameraEntity.Get<CameraComponent>();
-        
+
         var mapOffset = Helper.TileToScreenCoords(
             _mapOffsetX, _mapOffsetY,
             _metaMap.TileWidth, _metaMap.TileHeight
-        );        
+        );
         var viewportOffset = new Vector2(
             camera.ViewportWidth / 2f,
             camera.ViewportHeight / 2f - 9f * _metaMap.TileHeight
