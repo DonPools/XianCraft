@@ -14,6 +14,12 @@
 
 #---------------------------------- Content ---------------------------------#
 
+#begin Effects/DefaultEffect.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/DefaultEffect.fx
+
 #begin simsun.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor

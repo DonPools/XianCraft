@@ -33,13 +33,16 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private int _mapOffsetX = 0;
     private int _mapOffsetY = 0;
 
-    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap):
+    private TiledMapEffect _effect;
+
+    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
         base(world.GetEntities().With<ChunkComponent>().AsSet())
     {
         _world = world;
         _cameraSet = _world.GetEntities().With<CameraComponent>().AsSet();
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
+        _effect = new TiledMapEffect(effect);
 
         LoadMetaTiles(metaMap);
     }
@@ -106,7 +109,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             minY = Math.Min(minY, (int)chunkPos.Y);
             maxX = Math.Max(maxX, (int)chunkPos.X);
             maxY = Math.Max(maxY, (int)chunkPos.Y);
-        }        
+        }
 
         _mapOffsetX = -minX * Const.ChunkSize;
         _mapOffsetY = -minY * Const.ChunkSize;
@@ -142,7 +145,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                         }
                     }
                 }
-            }            
+            }
             tiledMap.AddLayer(newLayer);
         }
 
@@ -160,7 +163,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     }
 
     public void SyncChunks(ReadOnlySpan<Entity> chunkEntities)
-    {        
+    {
         var currentChunks = new HashSet<Point>();
         foreach (var entity in chunkEntities)
         {
@@ -197,7 +200,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                 (1 - camera.Zoom) * camera.ViewportWidth / 2, (1 - camera.Zoom) * camera.ViewportHeight / 2, 0.0f));
 
         Matrix projectionMatrix2 = Matrix.CreateOrthographicOffCenter(0f, camera.ViewportWidth, camera.ViewportHeight, 0f, 0f, -1f);
-        _mapRenderer.Draw(ref viewMatrix2, ref projectionMatrix2);
+        _mapRenderer.Draw(ref viewMatrix2, ref projectionMatrix2, _effect);
 
         spriteBatch.Begin();
         spriteBatch.DrawCircle(

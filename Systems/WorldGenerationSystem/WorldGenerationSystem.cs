@@ -13,7 +13,6 @@ namespace XianCraft.Systems;
 public class WorldGenerationSystem : AEntitySetSystem<float>
 {
     private readonly World _world;
-    private bool _isEnabled = true;
     private TiledMap _metaMap;
 
     private readonly HashSet<Point> _loadedChunks = new HashSet<Point>();

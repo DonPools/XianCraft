@@ -23,6 +23,8 @@ public class GameMain : Game
     private SpriteFont _spriteFont;
     private TiledMap _metaMap;
 
+    private Effect _effect;
+
     public GameMain()
     {
         _graphics = new GraphicsDeviceManager(this);
@@ -45,6 +47,8 @@ public class GameMain : Game
     {
         _spriteFont = Content.Load<SpriteFont>("simsun");
         _metaMap = Content.Load<TiledMap>("Tilemap/meta");
+        _effect = Content.Load<Effect>("DefaultEffect");
+
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
 
         _updateSystems = new SequentialSystem<float>(
@@ -54,7 +58,7 @@ public class GameMain : Game
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(
-            new WorldRendererSystem(_world, GraphicsDevice, _metaMap),
+            new WorldRendererSystem(_world, GraphicsDevice, _metaMap, _effect),
             new UISystem(_world, GraphicsDevice, _spriteFont)
         );
     }
