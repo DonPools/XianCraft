@@ -55,7 +55,7 @@ public class GameMain : Game
 
         _renderSystems = new SequentialSystem<SpriteBatch>(
             new WorldRendererSystem(_world, GraphicsDevice, _metaMap),
-            new StatUISystem(_world, GraphicsDevice, _spriteFont)
+            new UISystem(_world, GraphicsDevice, _spriteFont)
         );
     }
 

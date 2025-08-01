@@ -6,33 +6,24 @@ using XianCraft.Components;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using MonoGame.Extended.Tiled;
+using System.Linq;
 
 namespace XianCraft.Systems;
 
-public class WorldGenerationSystem : ISystem<float>
+public class WorldGenerationSystem : AEntitySetSystem<float>
 {
     private readonly World _world;
     private bool _isEnabled = true;
     private TiledMap _metaMap;
 
-    private Entity _cameraEntity;
-    private readonly HashSet<Point> _loadedChunks;
-    private readonly Dictionary<Point, Entity> _chunkEntities;
+    private readonly HashSet<Point> _loadedChunks = new HashSet<Point>();
+    private readonly Dictionary<Point, Entity> _chunkEntities = new Dictionary<Point, Entity>();
 
-    public bool IsEnabled
-    {
-        get => _isEnabled;
-        set => _isEnabled = value;
-    }
-
-    public WorldGenerationSystem(World world, TiledMap metaMap)
+    public WorldGenerationSystem(World world, TiledMap metaMap):
+        base(world.GetEntities().With<CameraComponent>().AsSet())
     {
         _world = world;
         _metaMap = metaMap;
-        _loadedChunks = new HashSet<Point>();
-        _chunkEntities = new Dictionary<Point, Entity>();
-
-        _cameraEntity = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0];
     }
 
     public Entity BuildChunk(int x, int y)
@@ -62,9 +53,8 @@ public class WorldGenerationSystem : ISystem<float>
         return Math.Sqrt(Math.Pow(to.X - from.X, 2) + Math.Pow(to.Y - from.Y, 2));
     }
 
-    private void UpdateChunks()
+    private void UpdateChunks(CameraComponent camera)
     {
-        var camera = _cameraEntity.Get<CameraComponent>();
         var cameraTile = Helper.ScreenToTileCoords(
             camera.Position.X, camera.Position.Y, _metaMap.TileWidth, _metaMap.TileHeight
         );
@@ -93,12 +83,12 @@ public class WorldGenerationSystem : ISystem<float>
         
         foreach (var chunkPos in chunksToUnload)
         {
-           if (_chunkEntities.TryGetValue(chunkPos, out var entity))
+            if (_chunkEntities.TryGetValue(chunkPos, out var entity))
             {
                 entity.Dispose();
+                _loadedChunks.Remove(chunkPos);
                 _chunkEntities.Remove(chunkPos);
-            }
-            _loadedChunks.Remove(chunkPos);
+            }            
         }
     }
 
@@ -126,12 +116,10 @@ public class WorldGenerationSystem : ISystem<float>
         return chunks;
     }
 
-    public void Update(float deltaTime)
+    protected override void Update(float deltaTime, in Entity entity)
     {
-        UpdateChunks();
+        var camera = entity.Get<CameraComponent>();
+        UpdateChunks(camera);
     }
-
-    public void Dispose()
-    {
-    }
+    
 }

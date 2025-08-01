@@ -5,38 +5,32 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using MonoGame.Extended.Tiled;
 using XianCraft.Components;
+using System.Linq;
+using MonoGame.Extended;
 
 
 namespace XianCraft.Systems;
 
-public class MouseInputSystem : ISystem<float>
+public class MouseInputSystem : AComponentSystem<float, CameraComponent>
 {
     private readonly World _world;
-    private readonly Entity _mouseEntity;
-    private readonly Entity _cameraEntity;
-    private readonly TiledMap _metaMap;
-    private bool _isEnabled = true;
 
-    public MouseInputSystem(World world, TiledMap metaMap)
+    private EntitySet _mouseInputSet;
+    private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
+    private readonly TiledMap _metaMap;
+
+    public MouseInputSystem(World world, TiledMap metaMap): base(world)
     {
         _world = world;
         _metaMap = metaMap;
-        _mouseEntity = _world.GetEntities().With<MouseInput>().AsSet().GetEntities()[0];
-        _cameraEntity = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0];
+        _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
     }
 
-    public bool IsEnabled
+    protected override void Update(float deltaTime, ref CameraComponent camera)
     {
-        get => _isEnabled;
-        set => _isEnabled = value;
-    }
-
-    public void Update(float deltaTime)
-    {
-
-        var mouseState = Mouse.GetState();
         ref var mouseInput = ref _mouseEntity.Get<MouseInput>();
-        var camera = _cameraEntity.Get<CameraComponent>();
+     
+        var mouseState = Mouse.GetState();                
         var offsetX = (mouseState.X - camera.ViewportWidth / 2f) / camera.Zoom + camera.Position.X;
         var offsetY = (mouseState.Y - camera.ViewportHeight / 2f) / camera.Zoom + camera.Position.Y;
 
@@ -46,9 +40,5 @@ public class MouseInputSystem : ISystem<float>
         );
         mouseInput.LeftButton = mouseState.LeftButton == ButtonState.Pressed;
         mouseInput.RightButton = mouseState.RightButton == ButtonState.Pressed;
-    }
-
-    public void Dispose()
-    {
     }
 }

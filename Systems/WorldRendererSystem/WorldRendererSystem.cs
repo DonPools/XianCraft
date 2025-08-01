@@ -3,7 +3,6 @@ using DefaultEcs.System;
 using Microsoft.Xna.Framework.Graphics;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
 using MonoGame.Extended.Tiled;
 using MonoGame.Extended.Tiled.Renderers;
 using System;
@@ -20,12 +19,12 @@ public class MetaTile
     public string Layer { get; set; }
 }
 
-public class WorldRendererSystem : ISystem<SpriteBatch>
+public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 {
     private readonly World _world;
-    private bool _isEnabled = true;
 
-    private Entity _cameraEntity;
+    private EntitySet _cameraSet;
+    private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private HashSet<Point> _loadedChunks = new HashSet<Point>();
 
     private TiledMap _metaMap;
@@ -34,10 +33,11 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
     private int _mapOffsetX = 0;
     private int _mapOffsetY = 0;
 
-    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap)
+    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap):
+        base(world.GetEntities().With<ChunkComponent>().AsSet())
     {
         _world = world;
-        _cameraEntity = _world.GetEntities().With<CameraComponent>().AsSet().GetEntities()[0];
+        _cameraSet = _world.GetEntities().With<CameraComponent>().AsSet();
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
 
@@ -89,13 +89,7 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
             throw new Exception($"Missing meta tiles for TerrainType: {string.Join(", ", missingTypes)}");
     }
 
-    public bool IsEnabled
-    {
-        get => _isEnabled;
-        set => _isEnabled = value;
-    }
-
-    public void BuildTiledMap(EntitySet chunkEntities)
+    public void BuildTiledMap(ReadOnlySpan<Entity> chunkEntities)
     {
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -104,16 +98,15 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         var minY = int.MaxValue;
         var maxX = int.MinValue;
         var maxY = int.MinValue;
-        for (int i = 0; i < chunkEntities.Count; i++)
+        foreach (var entity in chunkEntities)
         {
-            var entity = chunkEntities.GetEntities()[i];
             var chunk = entity.Get<ChunkComponent>();
             var chunkPos = chunk.Position;
             minX = Math.Min(minX, (int)chunkPos.X);
             minY = Math.Min(minY, (int)chunkPos.Y);
             maxX = Math.Max(maxX, (int)chunkPos.X);
             maxY = Math.Max(maxY, (int)chunkPos.Y);
-        }
+        }        
 
         _mapOffsetX = -minX * Const.ChunkSize;
         _mapOffsetY = -minY * Const.ChunkSize;
@@ -130,9 +123,8 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         foreach (var tileLayer in _metaMap.TileLayers)
         {
             var newLayer = new TiledMapTileLayer(tileLayer.Name, tileLayer.Type, width, height, tiledMap.TileWidth, tiledMap.TileHeight);
-            for (int i = 0; i < chunkEntities.Count; i++)
+            foreach (var entity in chunkEntities)
             {
-                var entity = chunkEntities.GetEntities()[i];
                 var chunk = entity.Get<ChunkComponent>();
                 var chunkPos = chunk.Position;
                 for (int x = 0; x < Const.ChunkSize; x++)
@@ -150,7 +142,7 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
                         }
                     }
                 }
-            }
+            }            
             tiledMap.AddLayer(newLayer);
         }
 
@@ -167,14 +159,10 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         Console.WriteLine($"BuildTiledMap 耗时: {stopwatch.ElapsedMilliseconds} ms");
     }
 
-    public void SyncChunks()
-    {
-        var chunkEntities = _world.GetEntities()
-            .With<ChunkComponent>()
-            .AsSet();
-
+    public void SyncChunks(ReadOnlySpan<Entity> chunkEntities)
+    {        
         var currentChunks = new HashSet<Point>();
-        foreach (var entity in chunkEntities.GetEntities())
+        foreach (var entity in chunkEntities)
         {
             var chunk = entity.Get<ChunkComponent>();
             var chunkPos = new Point((int)chunk.Position.X, (int)chunk.Position.Y);
@@ -188,11 +176,9 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
         BuildTiledMap(chunkEntities);
     }
 
-    public void Update(SpriteBatch spriteBatch)
+    protected override void Update(SpriteBatch spriteBatch, ReadOnlySpan<Entity> chunkEntities)
     {
-        if (!_isEnabled) return;
-
-        SyncChunks();
+        SyncChunks(chunkEntities);
 
         var camera = _cameraEntity.Get<CameraComponent>();
 
@@ -221,11 +207,5 @@ public class WorldRendererSystem : ISystem<SpriteBatch>
             Color.Red
         );
         spriteBatch.End();
-    }
-
-
-
-    public void Dispose()
-    {
     }
 }

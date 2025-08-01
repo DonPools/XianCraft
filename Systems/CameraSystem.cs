@@ -9,21 +9,18 @@ using MonoGame.Extended.Tiled;
 
 namespace XianCraft.Systems;
 
-public class CameraSystem : AEntitySetSystem<float>
+public class CameraSystem : AComponentSystem<float, CameraComponent>
 {
     private readonly GraphicsDevice _graphicsDevice;
 
-    public CameraSystem(World world, GraphicsDevice graphicsDevice) :
-        base(world.GetEntities().With<CameraComponent>().AsSet())
+    public CameraSystem(World world, GraphicsDevice graphicsDevice) : base(world)
     {
         _graphicsDevice = graphicsDevice;
     }
 
-
-    protected override void Update(float deltaTime, in Entity entity)
+    protected override void Update(float deltaTime, ref CameraComponent camera)
     {
         var keyboardState = Keyboard.GetState();
-        ref var camera = ref entity.Get<CameraComponent>();
 
         Vector2 movement = Vector2.Zero;
         if (keyboardState.IsKeyDown(Keys.W))
