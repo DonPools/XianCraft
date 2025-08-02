@@ -25,10 +25,10 @@ public struct Terrain
 // 区块组件 - 表示一个16x16的地形区块
 public struct ChunkComponent
 {
-    public Vector2 Position;
+    public Point Position;
     public TerrainType[,] TerrainData;
 
-    public ChunkComponent(Vector2 position, TerrainType[,] terrainData)
+    public ChunkComponent(Point position, TerrainType[,] terrainData)
     {
         Position = position;
         TerrainData = terrainData;
