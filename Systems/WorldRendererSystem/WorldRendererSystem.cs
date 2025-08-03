@@ -34,13 +34,9 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private int _mapOffsetX = 0;
     private int _mapOffsetY = 0;
 
-<<<<<<< HEAD
     private TiledMapEffect _effect;
 
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
-=======
-    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap) :
->>>>>>> origin/master
         base(world.GetEntities().With<ChunkComponent>().AsSet())
     {
         _world = world;

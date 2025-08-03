@@ -166,9 +166,10 @@ namespace XianCraft.Renderers.Tiled
 
 					// desired texture
 					tiledMapEffect.Texture = layerModel.Texture;
+                    tiledMapEffect.TextureSize = new Vector2(layerModel.Texture.Width, layerModel.Texture.Height);
 
-					// bind the vertex and index buffer
-					_graphicsDevice.SetVertexBuffer(layerModel.VertexBuffer);
+                    // bind the vertex and index buffer
+                    _graphicsDevice.SetVertexBuffer(layerModel.VertexBuffer);
 					_graphicsDevice.Indices = layerModel.IndexBuffer;
 
                     // for each pass in our effect

@@ -6,6 +6,7 @@ DECLARE_TEXTURE(Texture, 0);
 BEGIN_CONSTANTS
 
 float4 DiffuseColor = float4(1, 1, 1, 1);
+float2 TextureSize = float2(512, 512);
 
 MATRIX_CONSTANTS
 
@@ -35,7 +36,8 @@ VertexShaderOutputPositionTexture VertexShaderFunctionPositionTexture(VertexShad
 
 float4 PixelShaderFunctionPositionTexture(VertexShaderOutputPositionTexture input) : SV_Target0
 {
-	return SAMPLE_TEXTURE(Texture, input.TextureCoordinate) * DiffuseColor;
+    float2 pixelUV = (floor(input.TextureCoordinate * TextureSize) + 0.5) / TextureSize;
+    return SAMPLE_TEXTURE(Texture, pixelUV) * DiffuseColor;
 }
 
 VertexShaderOutputPositionColor VertexShaderFunctionPositionColor(VertexShaderInputPositionColor input)
@@ -62,8 +64,9 @@ VertexShaderOutputPositionColorTexture VertexShaderFunctionPositionColorTexture(
 
 float4 PixelShaderFunctionPositionColorTexture(VertexShaderOutputPositionColorTexture input) : SV_Target0
 {
-	float4 textureColor = SAMPLE_TEXTURE(Texture, input.TextureCoordinate);
-	return textureColor * input.Color * DiffuseColor;
+    float2 pixelUV = (floor(input.TextureCoordinate * TextureSize) + 0.5) / TextureSize;
+    float4 textureColor = SAMPLE_TEXTURE(Texture, pixelUV);
+    return textureColor * input.Color * DiffuseColor;
 }
 
 TECHNIQUE(Position, VertexShaderFunctionPosition, PixelShaderFunctionPosition);

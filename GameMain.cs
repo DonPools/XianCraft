@@ -6,6 +6,8 @@ using DefaultEcs;
 using DefaultEcs.System;
 
 using XianCraft.Systems;
+using XianCraft.Utils;
+using System.IO;
 
 namespace XianCraft;
 
@@ -47,7 +49,9 @@ public class GameMain : Game
     {
         _spriteFont = Content.Load<SpriteFont>("simsun");
         _metaMap = Content.Load<TiledMap>("Tilemap/meta");
-        _effect = Content.Load<Effect>("DefaultEffect");
+        var shaderExtention = UtilsHelper.GetShaderExtension();
+        var bytecode = File.ReadAllBytes(Path.Combine(Content.RootDirectory, "Effects", $"PixelPerfectEffect.{shaderExtention}.mgfxo"));
+        _effect = new Effect(GraphicsDevice, bytecode);
 
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
 

@@ -14,11 +14,11 @@
 
 #---------------------------------- Content ---------------------------------#
 
-#begin Effects/DefaultEffect.fx
-/importer:EffectImporter
-/processor:EffectProcessor
-/processorParam:DebugMode=Auto
-/build:Effects/DefaultEffect.fx
+#begin Effects/PixelPerfectEffect.dx11.mgfxo
+/copy:Effects/PixelPerfectEffect.dx11.mgfxo
+
+#begin Effects/PixelPerfectEffect.ogl.mgfxo
+/copy:Effects/PixelPerfectEffect.ogl.mgfxo
 
 #begin simsun.spritefont
 /importer:FontDescriptionImporter
