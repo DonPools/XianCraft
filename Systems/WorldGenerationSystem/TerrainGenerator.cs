@@ -131,18 +131,22 @@ public class TerrainGenerator
             return TerrainType.Water;
         }
 
-        // 检查是否靠近河流 - 河边区域植被茂盛
+        // 检查是否靠近河流
         bool nearRiver = IsNearRiver(elevation);
         
-        // 高山地区 - 考虑温度
+        // 高山地区 (0.8+)
         if (elevation > 0.8)
         {
-            if (temperature < 0.3) // 高山且寒冷
+            if (temperature < 0.2) // 极寒高山
                 return TerrainType.Stone; // 雪线以上
-            else if (nearRiver && temperature > 0.4)
-                return TerrainType.TallGrass; // 高山河谷，植被茂盛
+            else if (temperature < 0.4) // 寒冷高山
+                return TerrainType.Dirt; // 高山荒地
+            else if (nearRiver && humidity > 0.4)
+                return TerrainType.TallGrass; // 高山河谷
+            else if (humidity > 0.3)
+                return TerrainType.ShortGrass; // 高山草甸
             else
-                return TerrainType.Stone;
+                return TerrainType.Stone; // 干燥岩石
         }
 
         // 中高海拔地区 (0.5-0.8)
@@ -150,67 +154,81 @@ public class TerrainGenerator
         {
             if (temperature < 0.3) // 寒冷地区
             {
-                return TerrainType.Stone; // 寒冷高地
+                return humidity > 0.4 ? TerrainType.ShortGrass : TerrainType.Dirt;
             }
-            else if (nearRiver) // 河流附近，植被茂盛
+            else if (nearRiver) // 河流附近
+            {
+                return humidity > 0.6 ? TerrainType.TallGrass : TerrainType.WetDirt;
+            }
+            else if (humidity > 0.7 && temperature > 0.4) // 非常湿润温暖
             {
                 return TerrainType.TallGrass;
             }
-            else if (humidity > 0.6 && temperature > 0.4) // 温暖湿润
-            {
-                return TerrainType.TallGrass;
-            }
-            else if (humidity > 0.3) // 中等湿度
+            else if (humidity > 0.4) // 中等湿度
             {
                 return TerrainType.ShortGrass;
             }
-            else if (temperature > 0.7 && humidity < 0.2) // 炎热干燥
+            else if (humidity > 0.2) // 轻微干燥
             {
-                return TerrainType.Sand; // 干旱地区
+                return TerrainType.Dirt; // 干燥土地
             }
-            else // 一般干燥
+            else // 非常干燥
             {
-                return TerrainType.ShortGrass;
+                return temperature > 0.7 ? TerrainType.Sand : TerrainType.Stone;
             }
         }
 
         // 中低海拔地区 (0.35-0.5)
         if (elevation > 0.35)
         {
-            if (nearRiver) // 河流附近，植被最茂盛
+            if (nearRiver) // 河流附近
             {
-                return TerrainType.TallGrass;
+                if (humidity > 0.6)
+                    return TerrainType.TallGrass; // 茂密河岸植被
+                else
+                    return TerrainType.WetDirt; // 湿润河岸
             }
             else if (humidity > 0.6) // 湿润地区
             {
                 return TerrainType.TallGrass;
             }
-            else if (humidity > 0.3) // 中等湿度
+            else if (humidity > 0.4) // 中等湿度
             {
                 return TerrainType.ShortGrass;
             }
-            else if (temperature > 0.7 && humidity < 0.2) // 炎热干燥
+            else if (humidity > 0.2) // 轻微干燥
             {
-                return TerrainType.Sand;
+                return TerrainType.Dirt;
             }
-            else // 干燥但不至于荒漠
+            else // 干燥
             {
-                return TerrainType.ShortGrass;
+                return temperature > 0.6 ? TerrainType.Sand : TerrainType.Dirt;
             }
         }
 
         // 低地 (0.3-0.35) - 靠近水体
-        if (nearRiver || humidity > 0.5) // 河流附近或湿润的低地
+        if (nearRiver) // 河流附近的低地
         {
-            return TerrainType.TallGrass; // 河岸植被茂盛
+            if (humidity > 0.5)
+                return TerrainType.TallGrass; // 河岸茂密植被
+            else
+                return TerrainType.WetDirt; // 湿润河滩
         }
-        else if (humidity > 0.3)
+        else if (humidity > 0.6) // 湿润低地
+        {
+            return TerrainType.TallGrass;
+        }
+        else if (humidity > 0.4) // 中等湿度
         {
             return TerrainType.ShortGrass;
         }
-        else
+        else if (humidity > 0.2) // 干燥低地
         {
-            return TerrainType.Sand; // 干燥的低地可能是沙地
+            return TerrainType.Dirt;
+        }
+        else // 非常干燥的低地
+        {
+            return TerrainType.Sand;
         }
     }
 

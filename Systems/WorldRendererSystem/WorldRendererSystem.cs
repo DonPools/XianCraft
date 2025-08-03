@@ -14,11 +14,34 @@ namespace XianCraft.Systems;
 
 public class MetaTile
 {
+    public class MetaTileModel
+    {
+        public string BitMask { get; set; } = "";
+        public uint GlobalIdentifier { get; set; }
+        public string Layer { get; set; }
+        public Point OriginPos { get; set; } = Point.Zero;
+    }
+
     public string Name { get; set; }
-    public uint GlobalIdentifier { get; set; }
-    public string Layer { get; set; }
-    public Point OriginPos { get; set; } = Point.Zero;
+    public bool IsAutoTile { get; set; } = false;
+    public MetaTileModel Default { get; set; }
+    public Dictionary<string, MetaTileModel> Models { get; set; } = new();
+
+    public MetaTileModel GetMetaTileModel(string bitMask)
+    {
+        if (string.IsNullOrEmpty(bitMask))
+            return Default;
+
+        return Models.TryGetValue(bitMask, out var model) ? model : Default;
+    }
+
+    public override string ToString()
+    {
+        return $"{Name} (Default: {Default?.GlobalIdentifier}, Models: {Models.Count})";
+    }
 }
+
+
 
 public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 {
@@ -67,14 +90,34 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                     {
                         if (tile.GlobalIdentifier > 0)
                         {
-                            var metaTile = new MetaTile
+                            var objNameList = objTile.Name.Split("_");
+                            var objName = objNameList[0];
+                            var objBitMask = objNameList.Length > 1 ? objNameList[1] : "";
+
+                            var model = new MetaTile.MetaTileModel
                             {
-                                Name = objTile.Name,
+                                BitMask = objBitMask,
                                 GlobalIdentifier = (uint)tile.GlobalIdentifier,
                                 Layer = tileLayer.Name,
                                 OriginPos = new Point(x, y)
                             };
-                            _metaTiles[objTile.Name] = metaTile;
+
+                            if (_metaTiles.TryGetValue(objName, out var metaTile))
+                            {
+                                metaTile.Models[objBitMask] = model;
+                                metaTile.IsAutoTile = true;
+                                if (objBitMask == "")
+                                    metaTile.Default = model; // 更新默认模型
+                            }
+                            else
+                            {
+                                _metaTiles[objName] = new MetaTile
+                                {
+                                    Name = objName,
+                                    Default = model,
+                                    Models = new Dictionary<string, MetaTile.MetaTileModel> { { objBitMask, model } }
+                                };
+                            }
                             break;
                         }
                     }
@@ -96,8 +139,54 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         foreach (var tile in _metaTiles)
         {
-            Console.WriteLine($"Loaded meta tile: {tile.Key} -> {tile.Value.GlobalIdentifier} on layer {tile.Value.Layer} at {tile.Value.OriginPos}");
+            Console.WriteLine($"Loaded meta tile: {tile.Key} -> {tile.Value}");
         }
+    }
+
+    private string GetBitMask(Dictionary<Point, ChunkComponent> chunkDict, ChunkComponent chunk, int x, int y)
+    {
+        // 四个方向：左、下、右、上
+        int[,] directions = new int[,] { { -1, 0 }, { 0, 1 }, { 1, 0 }, { 0, -1 } };
+        TerrainType selfType = chunk.TerrainData[x, y];
+        int size = Const.ChunkSize;
+        string bitMask = "";
+
+        for (int i = 0; i < 4; i++)
+        {
+            int nx = x + directions[i, 0];
+            int ny = y + directions[i, 1];
+            bool same = false;
+
+            if (nx >= 0 && nx < size && ny >= 0 && ny < size)
+            {
+                // 当前区块内
+                same = chunk.TerrainData[nx, ny] == selfType;
+            }
+            else
+            {
+                // 跨区块，查找相邻区块
+                var chunkPos = chunk.Position;
+                int neighborChunkX = (int)chunkPos.X;
+                int neighborChunkY = (int)chunkPos.Y;
+                int localX = nx;
+                int localY = ny;
+
+                if (nx < 0) { neighborChunkX -= 1; localX = size - 1; }
+                if (nx >= size) { neighborChunkX += 1; localX = 0; }
+                if (ny < 0) { neighborChunkY -= 1; localY = size - 1; }
+                if (ny >= size) { neighborChunkY += 1; localY = 0; }
+
+                var neighborKey = new Point(neighborChunkX, neighborChunkY);
+                if (chunkDict.TryGetValue(neighborKey, out var neighbor))
+                {
+                    same = neighbor.TerrainData[localX, localY] == selfType;
+                }
+            }
+
+            bitMask += same ? "1" : "0";
+        }
+
+        return bitMask;
     }
 
     public void BuildTiledMap(ReadOnlySpan<Entity> chunkEntities)
@@ -131,30 +220,55 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             _metaMap.RenderOrder, _metaMap.Orientation, _metaMap.BackgroundColor
         );
 
+        var mapLayers = new Dictionary<string, TiledMapTileLayer>();
         foreach (var tileLayer in _metaMap.TileLayers)
         {
             var newLayer = new TiledMapTileLayer(tileLayer.Name, tileLayer.Type, width, height, tiledMap.TileWidth, tiledMap.TileHeight);
-            foreach (var entity in chunkEntities)
+            tiledMap.AddLayer(newLayer);
+            mapLayers[tileLayer.Name] = newLayer;
+        }
+
+        var chunkDict = new Dictionary<Point, ChunkComponent>();
+        foreach (var entity in chunkEntities)
+        {
+            var chunk = entity.Get<ChunkComponent>();
+            var chunkPos = chunk.Position;
+            chunkDict[new Point((int)chunkPos.X, (int)chunkPos.Y)] = chunk;
+        }
+        
+        foreach (var entity in chunkEntities)
+        {
+            var chunk = entity.Get<ChunkComponent>();
+            var chunkPos = chunk.Position;
+            for (int x = 0; x < Const.ChunkSize; x++)
             {
-                var chunk = entity.Get<ChunkComponent>();
-                var chunkPos = chunk.Position;
-                for (int x = 0; x < Const.ChunkSize; x++)
+                for (int y = 0; y < Const.ChunkSize; y++)
                 {
-                    for (int y = 0; y < Const.ChunkSize; y++)
+                    var terrainType = chunk.TerrainData[x, y];
+                    if (_metaTiles.TryGetValue(terrainType.ToString(), out var metaTile))
                     {
-                        var terrainType = chunk.TerrainData[x, y];
-                        if (_metaTiles.TryGetValue(terrainType.ToString(), out var metaTile))
+                        var tileX = x + (int)chunkPos.X * Const.ChunkSize + _mapOffsetX;
+                        var tileY = y + (int)chunkPos.Y * Const.ChunkSize + _mapOffsetY;
+                        if (metaTile.IsAutoTile)
                         {
-                            if (metaTile.Layer != tileLayer.Name)
-                                continue; // 只添加当前层的瓦片
-                            var tileX = x + (int)chunkPos.X * Const.ChunkSize + _mapOffsetX;
-                            var tileY = y + (int)chunkPos.Y * Const.ChunkSize + _mapOffsetY;
-                            newLayer.SetTile((ushort)tileX, (ushort)tileY, metaTile.GlobalIdentifier);
+                            // 自动瓦片处理
+                            var bitMask = GetBitMask(chunkDict, chunk, x, y);
+                            //Console.WriteLine($"Chunk: {chunkPos}, Tile: ({x},{y}), BitMask: {bitMask}");
+                            var model = metaTile.GetMetaTileModel(bitMask);
+                            if (model != null)
+                            {
+                                mapLayers[model.Layer]?.SetTile((ushort)tileX, (ushort)tileY, model.GlobalIdentifier);
+                            }
+                        }
+                        else
+                        {
+                            // 普通瓦片处理
+                            var model = metaTile.GetMetaTileModel("");
+                            mapLayers[model.Layer]?.SetTile((ushort)tileX, (ushort)tileY, metaTile.Default.GlobalIdentifier);
                         }
                     }
                 }
             }
-            tiledMap.AddLayer(newLayer);
         }
 
         foreach (var tileset in _metaMap.Tilesets)

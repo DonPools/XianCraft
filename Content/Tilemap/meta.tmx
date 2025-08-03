@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="isometric" renderorder="right-down" width="30" height="30" tilewidth="32" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="13">
+<map version="1.10" tiledversion="1.11.2" orientation="isometric" renderorder="right-down" width="30" height="30" tilewidth="32" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="23">
  <tileset firstgid="1" source="spritesheet.tsx"/>
  <layer id="2" name="UnderGround" width="30" height="30">
   <data encoding="csv">
@@ -38,10 +38,10 @@
  <layer id="1" name="Ground" width="30" height="30">
   <data encoding="csv">
 0,10,4,62,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,18,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,18,0,0,24,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,28,41,37,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,30,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,33,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -73,25 +73,55 @@
   <object id="2" name="Sand" x="23.9378" y="7.60833">
    <point/>
   </object>
-  <object id="4" name="Water" x="121.444" y="41.0115">
+  <object id="4" name="Water_0000" x="167.851" y="40.4127">
    <point/>
   </object>
-  <object id="6" name="WetDirt" x="38.0092" y="8.5062">
+  <object id="6" name="WetDirt" x="37.7743" y="6.45899">
    <point/>
   </object>
   <object id="7" name="Stone" x="56.1866" y="7.90395">
    <point/>
   </object>
-  <object id="8" name="ShortGrass" x="37.4775" y="37.767">
+  <object id="8" name="ShortGrass" x="52.2443" y="36.9615">
    <point/>
   </object>
-  <object id="9" name="TallGrass" x="70.89" y="39.2445">
+  <object id="9" name="TallGrass" x="68.4445" y="19.9272">
    <point/>
   </object>
-  <object id="11" name="Dirt" x="24.0326" y="24.3127">
+  <object id="11" name="Dirt" x="16.1122" y="0.685843">
    <point/>
   </object>
   <object id="12" x="-11.4265" y="69.903">
+   <point/>
+  </object>
+  <object id="13" name="Water_1111" x="118.15" y="38.0118">
+   <point/>
+  </object>
+  <object id="14" name="Water_1110" x="117.886" y="23.4708">
+   <point/>
+  </object>
+  <object id="15" name="Water_1100" x="132.955" y="21.7964">
+   <point/>
+  </object>
+  <object id="16" name="Water_1101" x="135.159" y="40.3913">
+   <point/>
+  </object>
+  <object id="17" name="Water_1001" x="136.128" y="55.9898">
+   <point/>
+  </object>
+  <object id="18" name="Water_1011" x="120.618" y="56.3424">
+   <point/>
+  </object>
+  <object id="19" name="Water_0011" x="104.931" y="55.8136">
+   <point/>
+  </object>
+  <object id="20" name="Water_0111" x="103.256" y="38.4525">
+   <point/>
+  </object>
+  <object id="21" name="Water_0110" x="105.195" y="24.5283">
+   <point/>
+  </object>
+  <object id="22" name="Water" x="121.234" y="40.9201">
    <point/>
   </object>
  </objectgroup>
