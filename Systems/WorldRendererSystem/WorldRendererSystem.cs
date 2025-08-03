@@ -4,11 +4,11 @@ using Microsoft.Xna.Framework.Graphics;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
 using MonoGame.Extended.Tiled;
-using MonoGame.Extended.Tiled.Renderers;
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using MonoGame.Extended;
+using XianCraft.Renderers.Tiled;
 
 namespace XianCraft.Systems;
 
