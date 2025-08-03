@@ -7,8 +7,13 @@ namespace XianCraft.Components;
 /// </summary>
 public enum TerrainType
 {
-    Dirt,            // 泥土 (陆地)
-    Water            // 水面
+    Sand,              // 沙子 (沙漠)
+    Dirt,               // 泥土 (陆地)
+    Water,              // 水面
+    WetDirt,            // 湿泥土 (湿润的陆地)
+    ShortGrass,         // 短草 (草地)
+    TallGrass,          // 高草 (茂密的草地)
+    Stone,              // 石头 (岩石)
 }
 
 // 地形方块组件
@@ -63,5 +68,5 @@ public struct CameraComponent
     {
         Position = position;
         Zoom = zoom;
-    }    
+    }
 }

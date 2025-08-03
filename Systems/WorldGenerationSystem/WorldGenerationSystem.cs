@@ -14,7 +14,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
 {
     private readonly World _world;
     private TiledMap _metaMap;
-    private TerrainGenerator _terrainGenerator = new TerrainGenerator();
+    private TerrainGenerator _terrainGenerator = new TerrainGenerator(1);
 
     private readonly HashSet<Point> _loadedChunks = new HashSet<Point>();
     private readonly Dictionary<Point, Entity> _chunkEntities = new Dictionary<Point, Entity>();
@@ -59,7 +59,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
             (int)Math.Floor(cameraTile.X / Const.ChunkSize),
             (int)Math.Floor(cameraTile.Y / Const.ChunkSize)
         );
-        var chunksToLoad = GetChunksInRadius(cameraChunk, 4, true);
+        var chunksToLoad = GetChunksInRadius(cameraChunk, Const.RenderDistance, true);
         foreach (var chunkPos in chunksToLoad)
         {
             var entity = BuildChunk(chunkPos.X, chunkPos.Y);
