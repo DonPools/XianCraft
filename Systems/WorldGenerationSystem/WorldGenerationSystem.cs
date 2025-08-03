@@ -14,6 +14,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
 {
     private readonly World _world;
     private TiledMap _metaMap;
+    private TerrainGenerator _terrainGenerator = new TerrainGenerator(1);
 
     private readonly HashSet<Point> _loadedChunks = new HashSet<Point>();
     private readonly Dictionary<Point, Entity> _chunkEntities = new Dictionary<Point, Entity>();
@@ -27,22 +28,18 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
 
     public Entity BuildChunk(int x, int y)
     {
-        var position = new Vector2(x, y);
+        var chunkPos = new Point(x, y);        
         var terrainData = new TerrainType[Const.ChunkSize, Const.ChunkSize];
         for (int i = 0; i < Const.ChunkSize; i++)
         {
             for (int j = 0; j < Const.ChunkSize; j++)
             {
-                var posX = x * Const.ChunkSize + i;
-                var posY = y * Const.ChunkSize + j;
-                // 计算到中心的曼哈顿距离
-                int dist = Math.Max(Math.Abs(posX - 8), Math.Abs(posY - 8));
-                terrainData[i, j] = dist % 2 == 0 ? TerrainType.Dirt : terrainData[i, j] = TerrainType.Water;
+                terrainData[i, j] = _terrainGenerator.GenerateChunkTerrain(chunkPos, Const.ChunkSize, i, j);                
             }
         }
 
         var entity = _world.CreateEntity();
-        entity.Set(new ChunkComponent(position, terrainData));
+        entity.Set(new ChunkComponent(chunkPos, terrainData));
 
         return entity;
     }
@@ -62,7 +59,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
             (int)Math.Floor(cameraTile.X / Const.ChunkSize),
             (int)Math.Floor(cameraTile.Y / Const.ChunkSize)
         );
-        var chunksToLoad = GetChunksInRadius(cameraChunk, 4, true);
+        var chunksToLoad = GetChunksInRadius(cameraChunk, Const.RenderDistance, true);
         foreach (var chunkPos in chunksToLoad)
         {
             var entity = BuildChunk(chunkPos.X, chunkPos.Y);

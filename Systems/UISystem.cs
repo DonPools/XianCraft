@@ -1,4 +1,3 @@
-
 using DefaultEcs;
 using DefaultEcs.System;
 using XianCraft.Components;
@@ -17,10 +16,11 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
 
     private EntitySet _cameraSet;
     private EntitySet _mouseInputSet;
+    private EntitySet _chunkSet;
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
 
-    public UISystem(World world, GraphicsDevice graphicsDevice, SpriteFont font):
+    public UISystem(World world, GraphicsDevice graphicsDevice, SpriteFont font) :
         base(world.GetEntities().AsSet())
     {
         _world = world;
@@ -31,15 +31,19 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
 
         _cameraSet = _world.GetEntities().With<CameraComponent>().AsSet();
         _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
+        _chunkSet = _world.GetEntities().With<ChunkComponent>().AsSet();
     }
 
 
     protected override void Update(SpriteBatch spriteBatch, ReadOnlySpan<Entity> entities)
     {
 
+        var camera = _cameraEntity.Get<CameraComponent>();
+        var mouseInput = _mouseEntity.Get<MouseInput>();
+
         spriteBatch.Begin();
 
-        var debugInfo = BuildDebugString(entities);
+        var debugInfo = BuildDebugString(camera, mouseInput, entities);
         var textSize = _font.MeasureString(debugInfo);
         var position = new Vector2(15, 15);
 
@@ -63,11 +67,8 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
         spriteBatch.End();
     }
 
-    private string BuildDebugString(ReadOnlySpan<Entity> entities)
-    {
-        var camera = _cameraEntity.Get<CameraComponent>();
-        var mouseInput = _mouseEntity.Get<MouseInput>();
-
+    private string BuildDebugString(CameraComponent camera, MouseInput mouseInput, ReadOnlySpan<Entity> entities)
+    { 
         // 内存和GC信息
         long totalMemory = GC.GetTotalMemory(false);
         int gc0 = GC.CollectionCount(0);
@@ -79,19 +80,43 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
         long workingSet = process.WorkingSet64;
         int handleCount = process.HandleCount;
 
-        var debugInfo = $"\n[内存/GC]" +
+        var debugInfo = $"[内存/GC]" +
                         $"\n托管堆内存: {totalMemory / 1024 / 1024:F2} MB" +
                         $"\nGC次数: Gen0={gc0}, Gen1={gc1}, Gen2={gc2}" +
                         $"\n工作集: {workingSet / 1024 / 1024:F2} MB" +
                         $"\n句柄数: {handleCount}";
 
-        debugInfo += $"\n[统计]\n" +
+        debugInfo += $"\n\n[统计]\n" +
                     $"实体数量: {entities.Length}\n" +
                     $"相机位置: {camera.Position.X:F1}, {camera.Position.Y:F1}\n" +
                     $"相机缩放: {camera.Zoom}\n" +
                     $"Viewport: {camera.ViewportWidth} x {camera.ViewportHeight}\n" +
                     $"鼠标位置: {mouseInput.Position.X:F1}, {mouseInput.Position.Y:F1}\n" +
                     $"鼠标世界位置: {mouseInput.WorldPosition.X:F1}, {mouseInput.WorldPosition.Y:F1}\n";
+
+        var worldX = (int)Math.Floor(mouseInput.WorldPosition.X);
+        var worldY = (int)Math.Floor(mouseInput.WorldPosition.Y);
+        
+        int FloorDiv(int a, int b) => (a >= 0) ? (a / b) : ((a - b + 1) / b);
+        var chunkX = FloorDiv(worldX, Const.ChunkSize);
+        var chunkY = FloorDiv(worldY, Const.ChunkSize);
+        var x = ((worldX % Const.ChunkSize) + Const.ChunkSize) % Const.ChunkSize;
+        var y = ((worldY % Const.ChunkSize) + Const.ChunkSize) % Const.ChunkSize;
+
+        var chunkEntities = _chunkSet.GetEntities();
+
+        debugInfo += $"鼠标所在区块: {chunkX}, {chunkY} ({x}, {y})\n";
+
+        foreach (var entity in chunkEntities)
+        {
+            var chunk = entity.Get<ChunkComponent>();
+            //Console.WriteLine($"Chunk: {chunk.Position.X}, {chunk.Position.Y} ({x}, {y})");
+            if (chunk.Position.X == chunkX && chunk.Position.Y == chunkY)
+            {
+                debugInfo += $"地形类型: {chunk.TerrainData[x, y]}\n";
+                break;
+            }
+        }
 
         return debugInfo;
     }

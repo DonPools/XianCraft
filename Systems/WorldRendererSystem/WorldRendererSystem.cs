@@ -4,11 +4,11 @@ using Microsoft.Xna.Framework.Graphics;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
 using MonoGame.Extended.Tiled;
-using MonoGame.Extended.Tiled.Renderers;
 using System;
 using System.Linq;
 using System.Collections.Generic;
 using MonoGame.Extended;
+using XianCraft.Renderers.Tiled;
 
 namespace XianCraft.Systems;
 
@@ -17,6 +17,7 @@ public class MetaTile
     public string Name { get; set; }
     public uint GlobalIdentifier { get; set; }
     public string Layer { get; set; }
+    public Point OriginPos { get; set; } = Point.Zero;
 }
 
 public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
@@ -33,9 +34,13 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private int _mapOffsetX = 0;
     private int _mapOffsetY = 0;
 
+<<<<<<< HEAD
     private TiledMapEffect _effect;
 
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
+=======
+    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap) :
+>>>>>>> origin/master
         base(world.GetEntities().With<ChunkComponent>().AsSet())
     {
         _world = world;
@@ -45,6 +50,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         _effect = new TiledMapEffect(effect);
 
         LoadMetaTiles(metaMap);
+        _mapRenderer.LoadMap(_metaMap);
     }
 
     private void LoadMetaTiles(TiledMap metaMap)
@@ -69,7 +75,8 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                             {
                                 Name = objTile.Name,
                                 GlobalIdentifier = (uint)tile.GlobalIdentifier,
-                                Layer = tileLayer.Name
+                                Layer = tileLayer.Name,
+                                OriginPos = new Point(x, y)
                             };
                             _metaTiles[objTile.Name] = metaTile;
                             break;
@@ -90,6 +97,11 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         if (missingTypes.Count > 0)
             throw new Exception($"Missing meta tiles for TerrainType: {string.Join(", ", missingTypes)}");
+
+        foreach (var tile in _metaTiles)
+        {
+            Console.WriteLine($"Loaded meta tile: {tile.Key} -> {tile.Value.GlobalIdentifier} on layer {tile.Value.Layer} at {tile.Value.OriginPos}");
+        }
     }
 
     public void BuildTiledMap(ReadOnlySpan<Entity> chunkEntities)
@@ -152,7 +164,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         foreach (var tileset in _metaMap.Tilesets)
         {
             // FIXME: 这里的 GlobalIdentifier 可能需要调整
-            tiledMap.AddTileset(tileset, 0);
+            tiledMap.AddTileset(tileset, 1);
         }
 
         // 这一步是最耗时的。
@@ -191,7 +203,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         );
         var viewportOffset = new Vector2(
             camera.ViewportWidth / 2f,
-            camera.ViewportHeight / 2f - 9f * _metaMap.TileHeight
+            camera.ViewportHeight / 2f - 1f * _metaMap.TileHeight
         );
         Matrix viewMatrix2 =
             Matrix.CreateTranslation(new Vector3(-camera.Position - mapOffset + viewportOffset, 0.0f)) *
