@@ -11,7 +11,7 @@ using MonoGame.Extended;
 
 namespace XianCraft.Systems;
 
-public class MouseInputSystem : AComponentSystem<float, CameraComponent>
+public class MouseInputSystem : AComponentSystem<float, Camera>
 {
     private readonly World _world;
 
@@ -26,7 +26,7 @@ public class MouseInputSystem : AComponentSystem<float, CameraComponent>
         _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
     }
 
-    protected override void Update(float deltaTime, ref CameraComponent camera)
+    protected override void Update(float deltaTime, ref Camera camera)
     {
         ref var mouseInput = ref _mouseEntity.Get<MouseInput>();
      

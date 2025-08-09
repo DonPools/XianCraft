@@ -1,0 +1,78 @@
+{
+    "Name": "wolf",
+    "File": "Aseprite/wolf",
+    "Animations": {
+        "Run_Down": {
+            "TagName": "run",
+            "SourceRect": {
+                "X": 0,
+                "Y": 0,
+                "Width": 64,
+                "Height": 64
+            }
+        },
+        "Run_Right": {
+            "TagName": "run",
+            "SourceRect": {
+                "X": 0,
+                "Y": 64,
+                "Width": 64,
+                "Height": 64
+            }
+        },
+        "Run_Left": {
+            "TagName": "run",
+            "SourceRect": {
+                "X": 0,
+                "Y": 128,
+                "Width": 64,
+                "Height": 64 
+            }
+        },
+        "Run_Up": {
+            "TagName": "run",
+            "SourceRect": {
+                "X": 0,
+                "Y": 192,
+                "Width": 64,
+                "Height": 64
+            }
+        },
+        "Idle_Down": {
+            "TagName": "idle",
+            "SourceRect": {
+                "X": 0,
+                "Y": 0,
+                "Width": 64,
+                "Height": 64
+            }
+        },
+        "Idle_Right": {
+            "TagName": "idle",
+            "SourceRect": {
+                "X": 0,
+                "Y": 64,
+                "Width": 64,
+                "Height": 64
+            }
+        },
+        "Idle_Left": {
+            "TagName": "idle",
+            "SourceRect": {
+                "X": 0,
+                "Y": 128,
+                "Width": 64,
+                "Height": 64
+            }
+        },
+        "Idle_Up": {
+            "TagName": "idle",
+            "SourceRect": {
+                "X": 0,
+                "Y": 192,
+                "Width": 64,
+                "Height": 64
+            }
+        }
+    }
+}

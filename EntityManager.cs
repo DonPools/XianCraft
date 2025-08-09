@@ -16,7 +16,7 @@ public class EnitityManager
     public Entity CreateCameraEntity()
     {
         var entity = _world.CreateEntity();
-        entity.Set(new CameraComponent(new Vector2(0, 0), 4.0f));
+        entity.Set(new Camera(new Vector2(0, 0), 4.0f));
         return entity;
     }
 
@@ -32,9 +32,19 @@ public class EnitityManager
         return entity;
     }
 
+    public Entity CreatePlayerEntity()
+    {
+        var entity = _world.CreateEntity();
+        entity.Set(new Player());
+        entity.Set(new Position { Value = Vector2.Zero });
+        entity.Set(new Movement());
+        return entity;
+    }
+
     public void Initialize()
     {
         CreateCameraEntity();
         CreateMouseInputEntity();
+        CreatePlayerEntity();
     }
 }

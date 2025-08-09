@@ -9,6 +9,7 @@ using System.Linq;
 using System.Collections.Generic;
 using MonoGame.Extended;
 using XianCraft.Renderers.Tiled;
+using MonoGame.Aseprite;
 
 namespace XianCraft.Systems;
 
@@ -50,6 +51,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private EntitySet _cameraSet;
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private HashSet<Point> _loadedChunks = new HashSet<Point>();
+    private AssetManager _assetManager;
 
     private TiledMap _metaMap;
     private TiledMapRenderer _mapRenderer;
@@ -58,18 +60,28 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private int _mapOffsetY = 0;
 
     private TiledMapEffect _effect;
+    
+    private AnimatedSprite _testAnimatedSprite;
+    private Rectangle _testSourceRect;
 
-    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
-        base(world.GetEntities().With<ChunkComponent>().AsSet())
+    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, AssetManager assetManager, TiledMap metaMap, Effect effect) :
+        base(world.GetEntities().With<Chunk>().AsSet())
     {
         _world = world;
-        _cameraSet = _world.GetEntities().With<CameraComponent>().AsSet();
+        _cameraSet = _world.GetEntities().With<Camera>().AsSet();
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
         _effect = new TiledMapEffect(effect);
 
         LoadMetaTiles(metaMap);
         _mapRenderer.LoadMap(_metaMap);
+        _assetManager = assetManager;
+
+        if (!_assetManager.TryGetAnimateSprite("wolf", "Run_Down", out _testAnimatedSprite, out _testSourceRect))
+        {
+            throw new Exception("Failed to get animate sprite for testing.");
+        }
+        Console.WriteLine($"Test get animateSprite: {_testAnimatedSprite}, SourceRect: {_testSourceRect}");
     }
 
     private void LoadMetaTiles(TiledMap metaMap)
@@ -143,7 +155,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         }
     }
 
-    private string GetBitMask(Dictionary<Point, ChunkComponent> chunkDict, ChunkComponent chunk, int x, int y)
+    private string GetBitMask(Dictionary<Point, Chunk> chunkDict, Chunk chunk, int x, int y)
     {
         // 四个方向：左、下、右、上
         int[,] directions = new int[,] { { -1, 0 }, { 0, 1 }, { 1, 0 }, { 0, -1 } };
@@ -200,7 +212,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         var maxY = int.MinValue;
         foreach (var entity in chunkEntities)
         {
-            var chunk = entity.Get<ChunkComponent>();
+            var chunk = entity.Get<Chunk>();
             var chunkPos = chunk.Position;
             minX = Math.Min(minX, (int)chunkPos.X);
             minY = Math.Min(minY, (int)chunkPos.Y);
@@ -228,17 +240,17 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             mapLayers[tileLayer.Name] = newLayer;
         }
 
-        var chunkDict = new Dictionary<Point, ChunkComponent>();
+        var chunkDict = new Dictionary<Point, Chunk>();
         foreach (var entity in chunkEntities)
         {
-            var chunk = entity.Get<ChunkComponent>();
+            var chunk = entity.Get<Chunk>();
             var chunkPos = chunk.Position;
             chunkDict[new Point((int)chunkPos.X, (int)chunkPos.Y)] = chunk;
         }
         
         foreach (var entity in chunkEntities)
         {
-            var chunk = entity.Get<ChunkComponent>();
+            var chunk = entity.Get<Chunk>();
             var chunkPos = chunk.Position;
             for (int x = 0; x < Const.ChunkSize; x++)
             {
@@ -289,7 +301,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         var currentChunks = new HashSet<Point>();
         foreach (var entity in chunkEntities)
         {
-            var chunk = entity.Get<ChunkComponent>();
+            var chunk = entity.Get<Chunk>();
             var chunkPos = new Point((int)chunk.Position.X, (int)chunk.Position.Y);
             currentChunks.Add(chunkPos);
         }
@@ -305,7 +317,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     {
         SyncChunks(chunkEntities);
 
-        var camera = _cameraEntity.Get<CameraComponent>();
+        var camera = _cameraEntity.Get<Camera>();
 
         var mapOffset = Helper.TileToScreenCoords(
             _mapOffsetX, _mapOffsetY,
@@ -324,12 +336,37 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         Matrix projectionMatrix2 = Matrix.CreateOrthographicOffCenter(0f, camera.ViewportWidth, camera.ViewportHeight, 0f, 0f, -1f);
         _mapRenderer.Draw(ref viewMatrix2, ref projectionMatrix2, _effect);
 
-        spriteBatch.Begin();
+        spriteBatch.Begin(
+            SpriteSortMode.Deferred,
+            BlendState.AlphaBlend,
+            SamplerState.PointClamp,
+            DepthStencilState.None,
+            RasterizerState.CullNone);
+
         spriteBatch.DrawCircle(
             new Vector2(camera.ViewportWidth / 2f, camera.ViewportHeight / 2f),
             5f,
             32,
             Color.Red
+        );
+                
+        var texture = _testAnimatedSprite.CurrentFrame.TextureRegion.Texture;
+        var scaledWidth = (int)(_testSourceRect.Width * camera.Zoom);
+        var scaledHeight = (int)(_testSourceRect.Height * camera.Zoom);
+
+        spriteBatch.Draw(
+            texture, new Rectangle(
+                (int)(camera.ViewportWidth / 2f - scaledWidth / 2),
+                (int)(camera.ViewportHeight / 2f - scaledHeight / 2),
+                scaledWidth,
+                scaledHeight
+            ),
+            _testSourceRect,
+            Color.White,
+            0f,
+            Vector2.Zero,
+            SpriteEffects.None,
+            0f
         );
         spriteBatch.End();
     }

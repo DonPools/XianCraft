@@ -11,8 +11,36 @@
 #-------------------------------- References --------------------------------#
 
 /reference:../pipeline-references/MonoGame.Extended.Content.Pipeline.dll
+/reference:../bin/Debug/net8.0/MonoGame.Aseprite.Content.Pipeline.dll
 
 #---------------------------------- Content ---------------------------------#
+
+#begin Aseprite/badger.aseprite
+/importer:AsepriteFileContentImporter
+/processor:AsepriteFileContentProcessor
+/processorParam:PremultiplyAlpha=True
+/build:Aseprite/badger.aseprite
+
+#begin Aseprite/boar.aseprite
+/importer:AsepriteFileContentImporter
+/processor:AsepriteFileContentProcessor
+/processorParam:PremultiplyAlpha=True
+/build:Aseprite/boar.aseprite
+
+#begin Aseprite/stag.aseprite
+/importer:AsepriteFileContentImporter
+/processor:AsepriteFileContentProcessor
+/processorParam:PremultiplyAlpha=True
+/build:Aseprite/stag.aseprite
+
+#begin Aseprite/wolf.aseprite
+/importer:AsepriteFileContentImporter
+/processor:AsepriteFileContentProcessor
+/processorParam:PremultiplyAlpha=True
+/build:Aseprite/wolf.aseprite
+
+#begin Characters/wolf.json
+/copy:Characters/wolf.json
 
 #begin Effects/PixelPerfectEffect.dx11.mgfxo
 /copy:Effects/PixelPerfectEffect.dx11.mgfxo

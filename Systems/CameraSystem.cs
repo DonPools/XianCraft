@@ -9,7 +9,7 @@ using MonoGame.Extended.Tiled;
 
 namespace XianCraft.Systems;
 
-public class CameraSystem : AComponentSystem<float, CameraComponent>
+public class CameraSystem : AComponentSystem<float, Camera>
 {
     private readonly GraphicsDevice _graphicsDevice;
 
@@ -18,7 +18,7 @@ public class CameraSystem : AComponentSystem<float, CameraComponent>
         _graphicsDevice = graphicsDevice;
     }
 
-    protected override void Update(float deltaTime, ref CameraComponent camera)
+    protected override void Update(float deltaTime, ref Camera camera)
     {
         var keyboardState = Keyboard.GetState();
 

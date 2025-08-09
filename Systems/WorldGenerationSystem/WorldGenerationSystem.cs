@@ -7,6 +7,7 @@ using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using MonoGame.Extended.Tiled;
 using System.Linq;
+using System.Data;
 
 namespace XianCraft.Systems;
 
@@ -20,7 +21,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
     private readonly Dictionary<Point, Entity> _chunkEntities = new Dictionary<Point, Entity>();
 
     public WorldGenerationSystem(World world, TiledMap metaMap):
-        base(world.GetEntities().With<CameraComponent>().AsSet())
+        base(world.GetEntities().With<Camera>().AsSet())
     {
         _world = world;
         _metaMap = metaMap;
@@ -39,7 +40,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
         }
 
         var entity = _world.CreateEntity();
-        entity.Set(new ChunkComponent(chunkPos, terrainData));
+        entity.Set(new Chunk(chunkPos, terrainData));
 
         return entity;
     }
@@ -49,7 +50,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
         return Math.Sqrt(Math.Pow(to.X - from.X, 2) + Math.Pow(to.Y - from.Y, 2));
     }
 
-    private void UpdateChunks(CameraComponent camera)
+    private void UpdateChunks(Camera camera)
     {
         var cameraTile = Helper.ScreenToTileCoords(
             camera.Position.X, camera.Position.Y, _metaMap.TileWidth, _metaMap.TileHeight
@@ -71,7 +72,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
         foreach (var loadedChunk in _loadedChunks)
         {
             double distance = CalculateChunkDistance(cameraChunk, loadedChunk);
-            if (distance > 4)
+            if (distance > Const.RenderDistance)
             {
                 chunksToUnload.Add(loadedChunk);
             }
@@ -114,7 +115,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
 
     protected override void Update(float deltaTime, in Entity entity)
     {
-        var camera = entity.Get<CameraComponent>();
+        var camera = entity.Get<Camera>();
         UpdateChunks(camera);
     }
     

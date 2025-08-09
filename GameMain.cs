@@ -21,6 +21,7 @@ public class GameMain : Game
     private SequentialSystem<float> _updateSystems;
     private SequentialSystem<SpriteBatch> _renderSystems;
 
+    private AssetManager _assetManager;
     private EnitityManager _entityManager;
     private SpriteFont _spriteFont;
     private TiledMap _metaMap;
@@ -53,6 +54,9 @@ public class GameMain : Game
         var bytecode = File.ReadAllBytes(Path.Combine(Content.RootDirectory, "Effects", $"PixelPerfectEffect.{shaderExtention}.mgfxo"));
         _effect = new Effect(GraphicsDevice, bytecode);
 
+        _assetManager = new AssetManager(Content, GraphicsDevice);
+        _assetManager.Initialize();
+
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
 
         _updateSystems = new SequentialSystem<float>(
@@ -62,8 +66,8 @@ public class GameMain : Game
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(
-            new WorldRendererSystem(_world, GraphicsDevice, _metaMap, _effect),
-            new UISystem(_world, GraphicsDevice, _spriteFont)
+            new WorldRendererSystem(_world, GraphicsDevice, _assetManager, _metaMap, _effect)
+            //new UISystem(_world, GraphicsDevice, _spriteFont)
         );
     }
 

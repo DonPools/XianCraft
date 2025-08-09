@@ -28,12 +28,12 @@ public struct Terrain
 }
 
 // 区块组件 - 表示一个16x16的地形区块
-public struct ChunkComponent
+public struct Chunk
 {
     public Point Position;
     public TerrainType[,] TerrainData;
 
-    public ChunkComponent(Point position, TerrainType[,] terrainData)
+    public Chunk(Point position, TerrainType[,] terrainData)
     {
         Position = position;
         TerrainData = terrainData;
@@ -57,16 +57,57 @@ public struct MouseInput
     }
 }
 
-public struct CameraComponent
+public struct Camera
 {
     public Vector2 Position;
     public float Zoom;
     public int ViewportWidth;
     public int ViewportHeight;
 
-    public CameraComponent(Vector2 position, float zoom)
+    public Camera(Vector2 position, float zoom)
     {
         Position = position;
         Zoom = zoom;
     }
+}
+
+public enum MovementType { Idle, Walk, Run }
+public enum FacingDirection { Up, Down, Left, Right }
+
+enum AnimationState
+{
+    Idle,
+    Run,
+}
+
+enum AnimationClip
+{
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+public class CharacterAnimateState
+{
+    public string CurrentAnimation = "Idle";
+    public string CurrentClip = "Down";
+    public float AnimationTime = 0f;
+}
+
+public class Movement
+{
+    public Vector2 Velocity { get; set; } = Vector2.Zero;  // 当前速度向量
+    public Vector2 TargetDirection { get; set; } = Vector2.Zero; // 目标方向
+
+    public float Acceleration = 500f; // 加速度
+    public float Deceleration = 800f; // 减速度
+    public float MaxSpeed = 200f;     // 最大速度    
+}
+
+public class Player { }
+
+public class Position
+{
+    public Vector2 Value { get; set; }
 }

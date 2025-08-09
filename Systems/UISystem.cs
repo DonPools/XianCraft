@@ -29,16 +29,16 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
         _pixelTexture = new Texture2D(graphicsDevice, 1, 1);
         _pixelTexture.SetData(new[] { Color.White });
 
-        _cameraSet = _world.GetEntities().With<CameraComponent>().AsSet();
+        _cameraSet = _world.GetEntities().With<Camera>().AsSet();
         _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
-        _chunkSet = _world.GetEntities().With<ChunkComponent>().AsSet();
+        _chunkSet = _world.GetEntities().With<Chunk>().AsSet();
     }
 
 
     protected override void Update(SpriteBatch spriteBatch, ReadOnlySpan<Entity> entities)
     {
 
-        var camera = _cameraEntity.Get<CameraComponent>();
+        var camera = _cameraEntity.Get<Camera>();
         var mouseInput = _mouseEntity.Get<MouseInput>();
 
         spriteBatch.Begin();
@@ -67,7 +67,7 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
         spriteBatch.End();
     }
 
-    private string BuildDebugString(CameraComponent camera, MouseInput mouseInput, ReadOnlySpan<Entity> entities)
+    private string BuildDebugString(Camera camera, MouseInput mouseInput, ReadOnlySpan<Entity> entities)
     { 
         // 内存和GC信息
         long totalMemory = GC.GetTotalMemory(false);
@@ -109,7 +109,7 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
 
         foreach (var entity in chunkEntities)
         {
-            var chunk = entity.Get<ChunkComponent>();
+            var chunk = entity.Get<Chunk>();
             //Console.WriteLine($"Chunk: {chunk.Position.X}, {chunk.Position.Y} ({x}, {y})");
             if (chunk.Position.X == chunkX && chunk.Position.Y == chunkY)
             {
