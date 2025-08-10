@@ -6,8 +6,6 @@ using XianCraft.Components;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using MonoGame.Extended.Tiled;
-using System.Linq;
-using System.Data;
 
 namespace XianCraft.Systems;
 
@@ -15,22 +13,26 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
 {
     private readonly World _world;
     private TiledMap _metaMap;
+
     private TerrainGenerator _terrainGenerator = new TerrainGenerator(1);
 
-    private readonly HashSet<Point> _loadedChunks = new HashSet<Point>();
-    private readonly Dictionary<Point, Entity> _chunkEntities = new Dictionary<Point, Entity>();
+    private readonly HashSet<Point> _loadedChunks = new();
+    private readonly Dictionary<Point, List<Entity>> _chunkEntities = new();
+    private EntityManager _entityManager;
 
-    public WorldGenerationSystem(World world, TiledMap metaMap):
+    public WorldGenerationSystem(World world, EntityManager entityManager, TiledMap metaMap) :
         base(world.GetEntities().With<Camera>().AsSet())
     {
         _world = world;
         _metaMap = metaMap;
+        _entityManager = entityManager;
     }
 
-    public Entity BuildChunk(int x, int y)
+    public List<Entity> BuildChunk(int x, int y)
     {
+        var enityList = new List<Entity>();
         var chunkPos = new Point(x, y);        
-        var terrainData = new TerrainType[Const.ChunkSize, Const.ChunkSize];
+        var terrainData = new Terrain[Const.ChunkSize, Const.ChunkSize];
         for (int i = 0; i < Const.ChunkSize; i++)
         {
             for (int j = 0; j < Const.ChunkSize; j++)
@@ -39,10 +41,31 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
             }
         }
 
-        var entity = _world.CreateEntity();
-        entity.Set(new Chunk(chunkPos, terrainData));
+        var entity = _world.CreateEntity();        
+        entity.Set(new Chunk{
+            Position = chunkPos,
+            TerrainData = terrainData
+        });
+        enityList.Add(entity);
 
-        return entity;
+        for (int i = 0; i < Const.ChunkSize; i++)
+        {
+            for (int j = 0; j < Const.ChunkSize; j++)
+            {
+                var terrain = terrainData[i, j];
+                if (terrain.HasTree)
+                {
+                    var position = new Vector2(
+                        chunkPos.X * Const.ChunkSize + i,
+                        chunkPos.Y * Const.ChunkSize + j
+                    );
+                    var treeEntity = _entityManager.CreateTreeEntity(position);
+                    enityList.Add(treeEntity);
+                }
+            }
+        }
+
+        return enityList;
     }
 
     private static double CalculateChunkDistance(Point from, Point to)
@@ -80,9 +103,11 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
         
         foreach (var chunkPos in chunksToUnload)
         {
-            if (_chunkEntities.TryGetValue(chunkPos, out var entity))
+            if (_chunkEntities.TryGetValue(chunkPos, out var entityList))
             {
-                entity.Dispose();
+                foreach (var entity in entityList)
+                    entity.Dispose();
+
                 _loadedChunks.Remove(chunkPos);
                 _chunkEntities.Remove(chunkPos);
             }            

@@ -93,7 +93,8 @@ public class AssetManager
     public void Initialize()
     {
         // 在这里可以加载默认的角色定义或其他初始化逻辑
-        LoadDefinitions("Characters/wolf.json");
+        LoadDefinitions("Animations/wolf.json");
+        LoadDefinitions("Animations/tree.json");
     }
 
     /// <summary>

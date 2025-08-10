@@ -22,24 +22,14 @@ public enum TerrainType
 public struct Terrain
 {
     public TerrainType Type;
-
-    public Terrain(TerrainType type)
-    {
-        Type = type;
-    }
+    public bool HasTree; // 是否有树
 }
 
 // 区块组件 - 表示一个16x16的地形区块
 public struct Chunk
 {
     public Point Position;
-    public TerrainType[,] TerrainData;
-
-    public Chunk(Point position, TerrainType[,] terrainData)
-    {
-        Position = position;
-        TerrainData = terrainData;
-    }
+    public Terrain[,] TerrainData;
 }
 
 // 鼠标输入组件
@@ -90,16 +80,33 @@ enum CharacterDirection
     Right,
 }
 
-public class CharacterAnimateState
+public class AnimateState
 {
     public Dictionary<string, AnimationData> Animations;
 
     public string Direction = "Down"; // 当前方向
-    
+
     public string CurrentAnimationName;
     public AnimatedSprite CurrentAnimation;
     public Rectangle SourceRectangle;
     public GameTime AnimationTime;
+    
+    public void SetAnimation(string animationName)
+    {
+        if (Animations.TryGetValue(animationName, out var animationData))
+        {
+            CurrentAnimationName = animationName;
+            CurrentAnimation = animationData.AnimatedSprite;
+            SourceRectangle = animationData.SourceRect;
+            CurrentAnimation.Reset();
+            CurrentAnimation.Play();
+        }
+        else
+        {
+            CurrentAnimation = null; // 或者设置为一个默认动画
+            SourceRectangle = Rectangle.Empty; // 或者设置为一个默认矩形
+        }
+    }
 }
 
 public class Movement
@@ -107,9 +114,9 @@ public class Movement
     public Vector2 Velocity { get; set; } = Vector2.Zero;  // 当前速度向量
     public Vector2 TargetDirection { get; set; } = Vector2.Zero; // 目标方向
 
-    public float Acceleration = 10f; // 加速度
-    public float Deceleration = 16f; // 减速度
-    public float MaxSpeed = 8f;     // 最大速度    
+    public float Acceleration = 256f; // 加速度
+    public float Deceleration = 256f; // 减速度
+    public float MaxSpeed = 16f;     // 最大速度    
 }
 
 public class Player { }

@@ -29,7 +29,7 @@ public class TerrainGenerator
     /// <summary>
     /// 生成区块地形数据
     /// </summary>
-    public TerrainType GenerateChunkTerrain(Point chunkPos, int chunkSize, int x, int y)
+    public Terrain GenerateChunkTerrain(Point chunkPos, int chunkSize, int x, int y)
     {
         int startX = chunkPos.X * chunkSize;
         int startY = chunkPos.Y * chunkSize;
@@ -40,8 +40,42 @@ public class TerrainGenerator
         double elevation = GenerateElevation(worldX, worldY);
         double humidity = GenerateHumidity(worldX, worldY, elevation);
         double temperature = GenerateTemperature(worldX, worldY, elevation);
+        
+        var terrainType = DetermineTerrainType(elevation, humidity, temperature);
 
-        return DetermineTerrainType(elevation, humidity, temperature);        
+        // 树木生成逻辑：
+        // 1. 只在合适地形（如TallGrass, ShortGrass, Dirt）上生成树
+        // 2. 保证每棵树6格内没有其他树（伪随机分布，基于世界坐标）
+        bool canHaveTree = terrainType == TerrainType.TallGrass || terrainType == TerrainType.ShortGrass || terrainType == TerrainType.Dirt;
+        bool hasTree = false;
+        if (canHaveTree)
+        {
+            // 用哈希+噪声方式保证分布稀疏且一致
+            int treeSpacing = 6;
+            int cellX = worldX / treeSpacing;
+            int cellY = worldY / treeSpacing;
+            // 只允许每个treeSpacing*treeSpacing的格子里有一棵树
+            // 进一步用噪声决定是否生成树
+            double treeNoise = _terrainNoise.OctaveNoise2D(cellX * 1000 + 12345, cellY * 1000 + 54321, 2, 0.5, 0.2);
+            treeNoise = (treeNoise + 1) * 0.5; // 0-1
+            // 只有在噪声大于0.5时才生成树，且只在cell的左上角（或中心）
+            if (treeNoise > 0.5)
+            {
+                // 只在cell的中心生成树，避免同cell内多棵树
+                int localX = worldX % treeSpacing;
+                int localY = worldY % treeSpacing;
+                if (localX == treeSpacing / 2 && localY == treeSpacing / 2)
+                {
+                    hasTree = true;
+                }
+            }
+        }
+
+        return new Terrain
+        {
+            Type = terrainType,
+            HasTree = hasTree,
+        };        
     }
     
     /// <summary>

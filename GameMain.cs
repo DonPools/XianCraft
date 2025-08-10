@@ -22,7 +22,7 @@ public class GameMain : Game
     private SequentialSystem<SpriteBatch> _renderSystems;
 
     private AssetManager _assetManager;
-    private EnitityManager _entityManager;
+    private EntityManager _entityManager;
     private SpriteFont _spriteFont;
     private TiledMap _metaMap;
 
@@ -56,7 +56,7 @@ public class GameMain : Game
         _assetManager = new AssetManager(Content, GraphicsDevice);
         _assetManager.Initialize();
 
-        _entityManager = new EnitityManager(_world, _assetManager);
+        _entityManager = new EntityManager(_world, _assetManager);
         _entityManager.Initialize();
 
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
@@ -64,10 +64,10 @@ public class GameMain : Game
         _updateSystems = new SequentialSystem<GameTime>(
             new CameraSystem(_world, GraphicsDevice, _metaMap),
             new MouseInputSystem(_world, _metaMap),
-            new WorldGenerationSystem(_world, _metaMap),
+            new WorldGenerationSystem(_world, _entityManager, _metaMap),
             new PlayerControlSystem(_world),
             new MovementSystem(_world),
-            new CharacterAnimationSystem(_world)
+            new AnimationSystem(_world)
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(

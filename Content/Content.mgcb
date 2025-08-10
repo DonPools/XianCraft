@@ -15,6 +15,12 @@
 
 #---------------------------------- Content ---------------------------------#
 
+#begin Animations/tree.json
+/copy:Animations/tree.json
+
+#begin Animations/wolf.json
+/copy:Animations/wolf.json
+
 #begin Aseprite/badger.aseprite
 /importer:AsepriteFileContentImporter
 /processor:AsepriteFileContentProcessor
@@ -33,14 +39,17 @@
 /processorParam:PremultiplyAlpha=True
 /build:Aseprite/stag.aseprite
 
+#begin Aseprite/tree.aseprite
+/importer:AsepriteFileContentImporter
+/processor:AsepriteFileContentProcessor
+/processorParam:PremultiplyAlpha=True
+/build:Aseprite/tree.aseprite
+
 #begin Aseprite/wolf.aseprite
 /importer:AsepriteFileContentImporter
 /processor:AsepriteFileContentProcessor
 /processorParam:PremultiplyAlpha=True
 /build:Aseprite/wolf.aseprite
-
-#begin Characters/wolf.json
-/copy:Characters/wolf.json
 
 #begin Effects/PixelPerfectEffect.dx11.mgfxo
 /copy:Effects/PixelPerfectEffect.dx11.mgfxo

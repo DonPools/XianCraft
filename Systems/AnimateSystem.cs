@@ -4,24 +4,22 @@ using XianCraft.Components;
 using Microsoft.Xna.Framework;
 using System;
 
-public class CharacterAnimationSystem : AEntitySetSystem<GameTime>
+public class AnimationSystem : AEntitySetSystem<GameTime>
 {
     private readonly World _world;
 
-    public CharacterAnimationSystem(World world) : base(world.GetEntities().With<CharacterAnimateState>().AsSet())
+    public AnimationSystem(World world) : base(world.GetEntities().With<AnimateState>().AsSet())
     {
         _world = world;
     }
 
     protected override void Update(GameTime gameTime, in Entity entity)
     {
-        float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        ref var animState = ref entity.Get<CharacterAnimateState>();
+        ref var animState = ref entity.Get<AnimateState>();
         if (entity.Has<Movement>())
         {
-            ref var movement = ref entity.Get<Movement>();
-
-            // 根据速度获得运动方向
+            var movement = entity.Get<Movement>();
+            // 根据速度获得运动方向, TODO: 把方向从动画状态中移除
             string direction = GetDirectionFromVelocity(movement.Velocity, animState.Direction);
             animState.Direction = direction; // 记录当前方向
             var animationName = movement.TargetDirection != Vector2.Zero
@@ -29,29 +27,11 @@ public class CharacterAnimationSystem : AEntitySetSystem<GameTime>
                 : $"Idle_{direction}";
 
             if (animState.CurrentAnimationName != animationName)
-            {
-                animState.CurrentAnimationName = animationName;
-
-                // 如果有对应的动画，更新当前动画
-                if (animState.Animations.TryGetValue(animationName, out var animationData))
-                {
-                    animState.CurrentAnimation = animationData.AnimatedSprite;
-                    animState.SourceRectangle = animationData.SourceRect;
-                    animState.CurrentAnimation.Reset();
-                    animState.CurrentAnimation.Play();
-                }
-                else
-                {
-                    Console.WriteLine($"Warning: Animation '{animationName}' not found.");
-                    // 如果没有找到对应的动画，使用默认动画
-                    animState.CurrentAnimation = null; // 或者设置为一个默认动画
-                    animState.SourceRectangle = Rectangle.Empty; // 或者设置为一个默认矩形
-                }
-            }
-
-            if (animState.CurrentAnimation != null)
-                animState.CurrentAnimation.Update(gameTime);
+                animState.SetAnimation(animationName);
         }
+
+        if (animState.CurrentAnimation != null)
+            animState.CurrentAnimation.Update(gameTime);
 
     }
 

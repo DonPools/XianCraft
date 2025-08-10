@@ -113,7 +113,7 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
             //Console.WriteLine($"Chunk: {chunk.Position.X}, {chunk.Position.Y} ({x}, {y})");
             if (chunk.Position.X == chunkX && chunk.Position.Y == chunkY)
             {
-                debugInfo += $"地形类型: {chunk.TerrainData[x, y]}\n";
+                debugInfo += $"地形类型: {chunk.TerrainData[x, y].Type}";
                 break;
             }
         }

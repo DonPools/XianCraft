@@ -7,9 +7,7 @@ using MonoGame.Extended.Tiled;
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using MonoGame.Extended;
 using XianCraft.Renderers.Tiled;
-using MonoGame.Aseprite;
 
 namespace XianCraft.Systems;
 
@@ -42,8 +40,6 @@ public class MetaTile
     }
 }
 
-
-
 public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 {
     private readonly World _world;
@@ -68,7 +64,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         _world = world;
 
         _cameraSet = _world.GetEntities().With<Camera>().AsSet();
-        _characterSet = _world.GetEntities().With<Position>().With<CharacterAnimateState>().AsSet();
+        _characterSet = _world.GetEntities().With<Position>().With<AnimateState>().AsSet();
 
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
@@ -153,7 +149,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     {
         // 四个方向：左、下、右、上
         int[,] directions = new int[,] { { -1, 0 }, { 0, 1 }, { 1, 0 }, { 0, -1 } };
-        TerrainType selfType = chunk.TerrainData[x, y];
+        TerrainType selfType = chunk.TerrainData[x, y].Type;
         int size = Const.ChunkSize;
         string bitMask = "";
 
@@ -166,7 +162,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             if (nx >= 0 && nx < size && ny >= 0 && ny < size)
             {
                 // 当前区块内
-                same = chunk.TerrainData[nx, ny] == selfType;
+                same = chunk.TerrainData[nx, ny].Type == selfType;
             }
             else
             {
@@ -185,7 +181,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                 var neighborKey = new Point(neighborChunkX, neighborChunkY);
                 if (chunkDict.TryGetValue(neighborKey, out var neighbor))
                 {
-                    same = neighbor.TerrainData[localX, localY] == selfType;
+                    same = neighbor.TerrainData[localX, localY].Type == selfType;
                 }
             }
 
@@ -197,7 +193,6 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
     public void BuildTiledMap(ReadOnlySpan<Entity> chunkEntities)
     {
-
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         var minX = int.MaxValue;
@@ -250,7 +245,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             {
                 for (int y = 0; y < Const.ChunkSize; y++)
                 {
-                    var terrainType = chunk.TerrainData[x, y];
+                    var terrainType = chunk.TerrainData[x, y].Type;
                     if (_metaTiles.TryGetValue(terrainType.ToString(), out var metaTile))
                     {
                         var tileX = x + (int)chunkPos.X * Const.ChunkSize + _mapOffsetX;
@@ -281,13 +276,13 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         {
             // FIXME: 这里的 GlobalIdentifier 可能需要调整
             tiledMap.AddTileset(tileset, 1);
-        }
+        }        
 
         // 这一步是最耗时的。
         _mapRenderer.LoadMap(tiledMap);
 
         stopwatch.Stop();
-        Console.WriteLine($"BuildTiledMap 耗时: {stopwatch.ElapsedMilliseconds} ms");
+        Console.WriteLine($"BuildTiledMap 耗时: {stopwatch.ElapsedMilliseconds} ms {tiledMap.Width}x{tiledMap.Height} tiles, {chunkEntities.Length} chunks");
     }
 
     public void SyncChunks(ReadOnlySpan<Entity> chunkEntities)
@@ -340,7 +335,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         foreach (var entity in _characterSet.GetEntities())
         {
-            ref var animateState = ref entity.Get<CharacterAnimateState>();
+            ref var animateState = ref entity.Get<AnimateState>();
             ref var position = ref entity.Get<Position>();
             
             if (animateState.CurrentAnimation == null)

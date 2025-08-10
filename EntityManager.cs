@@ -1,16 +1,15 @@
 using DefaultEcs;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
-using System.Collections.Generic;
 
 namespace XianCraft;
 
-public class EnitityManager
+public class EntityManager
 {
     World _world;
     AssetManager _assetManager;
 
-    public EnitityManager(World world, AssetManager assetManager)
+    public EntityManager(World world, AssetManager assetManager)
     {
         _world = world;
         _assetManager = assetManager;
@@ -34,14 +33,27 @@ public class EnitityManager
         ));
         return entity;
     }
+    
+    public Entity CreateTreeEntity(Vector2 position)
+    {
+        var entity = _world.CreateEntity();
+        var animateState = new AnimateState
+        {
+            Animations = _assetManager.GetCharacterAnimations("tree"),
+        };
+        animateState.SetAnimation("Default");
+        entity.Set(new Position { Value = position });        
+        entity.Set(animateState);
+        return entity;
+    }
 
     public Entity CreatePlayerEntity()
-    {        
+    {
         var entity = _world.CreateEntity();
         entity.Set(new Player());
         entity.Set(new Position { Value = new Vector2(1, 1) });
         entity.Set(new Movement());
-        entity.Set(new CharacterAnimateState
+        entity.Set(new AnimateState
         {
             Animations = _assetManager.GetCharacterAnimations("wolf")
         });
