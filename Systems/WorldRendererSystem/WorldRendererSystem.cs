@@ -51,7 +51,6 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private EntitySet _cameraSet;
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private HashSet<Point> _loadedChunks = new HashSet<Point>();
-    private AssetManager _assetManager;
 
     private TiledMap _metaMap;
     private TiledMapRenderer _mapRenderer;
@@ -60,28 +59,23 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private int _mapOffsetY = 0;
 
     private TiledMapEffect _effect;
-    
-    private AnimatedSprite _testAnimatedSprite;
-    private Rectangle _testSourceRect;
 
-    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, AssetManager assetManager, TiledMap metaMap, Effect effect) :
+    private EntitySet _characterSet;
+
+    public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
         base(world.GetEntities().With<Chunk>().AsSet())
     {
         _world = world;
+
         _cameraSet = _world.GetEntities().With<Camera>().AsSet();
+        _characterSet = _world.GetEntities().With<Position>().With<CharacterAnimateState>().AsSet();
+
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
         _effect = new TiledMapEffect(effect);
 
         LoadMetaTiles(metaMap);
         _mapRenderer.LoadMap(_metaMap);
-        _assetManager = assetManager;
-
-        if (!_assetManager.TryGetAnimateSprite("wolf", "Run_Down", out _testAnimatedSprite, out _testSourceRect))
-        {
-            throw new Exception("Failed to get animate sprite for testing.");
-        }
-        Console.WriteLine($"Test get animateSprite: {_testAnimatedSprite}, SourceRect: {_testSourceRect}");
     }
 
     private void LoadMetaTiles(TiledMap metaMap)
@@ -247,7 +241,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             var chunkPos = chunk.Position;
             chunkDict[new Point((int)chunkPos.X, (int)chunkPos.Y)] = chunk;
         }
-        
+
         foreach (var entity in chunkEntities)
         {
             var chunk = entity.Get<Chunk>();
@@ -349,25 +343,49 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             32,
             Color.Red
         );
-                
-        var texture = _testAnimatedSprite.CurrentFrame.TextureRegion.Texture;
-        var scaledWidth = (int)(_testSourceRect.Width * camera.Zoom);
-        var scaledHeight = (int)(_testSourceRect.Height * camera.Zoom);
 
-        spriteBatch.Draw(
-            texture, new Rectangle(
-                (int)(camera.ViewportWidth / 2f - scaledWidth / 2),
-                (int)(camera.ViewportHeight / 2f - scaledHeight / 2),
-                scaledWidth,
-                scaledHeight
-            ),
-            _testSourceRect,
-            Color.White,
-            0f,
-            Vector2.Zero,
-            SpriteEffects.None,
-            0f
-        );
+        foreach (var entity in _characterSet.GetEntities())
+        {
+            ref var animateState = ref entity.Get<CharacterAnimateState>();
+            ref var position = ref entity.Get<Position>();
+            
+            if (animateState.CurrentAnimation == null)
+                continue;
+
+            var sprite = animateState.CurrentAnimation;
+            var sourceRect = animateState.SourceRectangle;
+
+            var scaledWidth = (int)(sourceRect.Width * camera.Zoom);
+            var scaledHeight = (int)(sourceRect.Height * camera.Zoom);
+
+            var worldScreenPos = Helper.TileToScreenCoords(
+                position.Value.X, position.Value.Y,
+                _metaMap.TileWidth, _metaMap.TileHeight
+            );
+
+            var relPos = (worldScreenPos - camera.Position) * camera.Zoom;
+            spriteBatch.Draw(
+                sprite.TextureRegion.Texture,
+                new Rectangle(
+                    (int)(camera.ViewportWidth / 2f - scaledWidth / 2 + relPos.X),
+                    (int)(camera.ViewportHeight / 2f - scaledHeight / 2 + relPos.Y),
+                    scaledWidth,
+                    scaledHeight
+                ),
+                new Rectangle(
+                    sourceRect.X + sprite.TextureRegion.Bounds.X,
+                    sourceRect.Y + sprite.TextureRegion.Bounds.Y,
+                    sourceRect.Width,
+                    sourceRect.Height
+                ),
+                sprite.Color * sprite.Transparency,
+                sprite.Rotation,
+                sprite.Origin,
+                sprite.SpriteEffects,
+                sprite.LayerDepth
+            );
+        }
+
         spriteBatch.End();
     }
 }

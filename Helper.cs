@@ -4,7 +4,7 @@ namespace XianCraft;
 
 public class Helper
 {
-    public static Vector2 TileToScreenCoords(int tileX, int tileY, int tileWidth, int tileHeight)
+    public static Vector2 TileToScreenCoords(float tileX, float tileY, int tileWidth, int tileHeight)
     {
         float screenX = (tileX - tileY) * tileWidth / 2f;
         float screenY = (tileX + tileY) * tileHeight / 2f;

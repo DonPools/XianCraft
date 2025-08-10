@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using MonoGame.Aseprite;
 
 namespace XianCraft.Components;
 
@@ -74,13 +76,13 @@ public struct Camera
 public enum MovementType { Idle, Walk, Run }
 public enum FacingDirection { Up, Down, Left, Right }
 
-enum AnimationState
+enum CharacterState
 {
     Idle,
     Run,
 }
 
-enum AnimationClip
+enum CharacterDirection
 {
     Up,
     Down,
@@ -90,9 +92,12 @@ enum AnimationClip
 
 public class CharacterAnimateState
 {
-    public string CurrentAnimation = "Idle";
-    public string CurrentClip = "Down";
-    public float AnimationTime = 0f;
+    public Dictionary<string, AnimationData> Animations;
+
+    public string CurrentAnimationName;
+    public AnimatedSprite CurrentAnimation;
+    public Rectangle SourceRectangle;
+    public GameTime AnimationTime;
 }
 
 public class Movement

@@ -18,7 +18,7 @@ public class GameMain : Game
 
     // ECS
     private World _world;
-    private SequentialSystem<float> _updateSystems;
+    private SequentialSystem<GameTime> _updateSystems;
     private SequentialSystem<SpriteBatch> _renderSystems;
 
     private AssetManager _assetManager;
@@ -40,8 +40,7 @@ public class GameMain : Game
     protected override void Initialize()
     {
         _world = new World();
-        _entityManager = new EnitityManager(_world);
-        _entityManager.Initialize();
+        
 
         base.Initialize();
     }
@@ -57,17 +56,22 @@ public class GameMain : Game
         _assetManager = new AssetManager(Content, GraphicsDevice);
         _assetManager.Initialize();
 
+        _entityManager = new EnitityManager(_world, _assetManager);
+        _entityManager.Initialize();
+
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
 
-        _updateSystems = new SequentialSystem<float>(
+        _updateSystems = new SequentialSystem<GameTime>(
             new CameraSystem(_world, GraphicsDevice),
             new MouseInputSystem(_world, _metaMap),
-            new WorldGenerationSystem(_world, _metaMap)
+            new WorldGenerationSystem(_world, _metaMap),
+            new MovementSystem(_world),
+            new CharacterAnimationSystem(_world)
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(
-            new WorldRendererSystem(_world, GraphicsDevice, _assetManager, _metaMap, _effect)
-            //new UISystem(_world, GraphicsDevice, _spriteFont)
+            new WorldRendererSystem(_world, GraphicsDevice, _metaMap, _effect),
+            new UISystem(_world, GraphicsDevice, _spriteFont)
         );
     }
 
@@ -76,7 +80,7 @@ public class GameMain : Game
         if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
             Exit();
 
-        _updateSystems.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+        _updateSystems.Update(gameTime);
 
         base.Update(gameTime);
     }

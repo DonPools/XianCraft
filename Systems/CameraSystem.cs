@@ -9,7 +9,7 @@ using MonoGame.Extended.Tiled;
 
 namespace XianCraft.Systems;
 
-public class CameraSystem : AComponentSystem<float, Camera>
+public class CameraSystem : AComponentSystem<GameTime, Camera>
 {
     private readonly GraphicsDevice _graphicsDevice;
 
@@ -18,7 +18,7 @@ public class CameraSystem : AComponentSystem<float, Camera>
         _graphicsDevice = graphicsDevice;
     }
 
-    protected override void Update(float deltaTime, ref Camera camera)
+    protected override void Update(GameTime gameTime, ref Camera camera)
     {
         var keyboardState = Keyboard.GetState();
 
@@ -40,6 +40,7 @@ public class CameraSystem : AComponentSystem<float, Camera>
         if (movement != Vector2.Zero)
         {
             movement.Normalize();
+            float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             camera.Position += movement * 100f * deltaTime / camera.Zoom; // 移动速度为 100单位/秒
         }
 

@@ -11,7 +11,7 @@ using System.Data;
 
 namespace XianCraft.Systems;
 
-public class WorldGenerationSystem : AEntitySetSystem<float>
+public class WorldGenerationSystem : AEntitySetSystem<GameTime>
 {
     private readonly World _world;
     private TiledMap _metaMap;
@@ -113,7 +113,7 @@ public class WorldGenerationSystem : AEntitySetSystem<float>
         return chunks;
     }
 
-    protected override void Update(float deltaTime, in Entity entity)
+    protected override void Update(GameTime gameTime, in Entity entity)
     {
         var camera = entity.Get<Camera>();
         UpdateChunks(camera);

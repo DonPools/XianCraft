@@ -30,6 +30,12 @@ public class AnimationDefinition
     public RectangleData SourceRect { get; init; }
 }
 
+public class AnimationData
+{ 
+    public AnimatedSprite AnimatedSprite { get; set; }
+    public Rectangle SourceRect { get; set; }
+}
+
 /// <summary>
 /// 角色定义，指向包含所有动画 Tag 的单个精灵文件。
 /// </summary>
@@ -149,13 +155,40 @@ public class AssetManager
             }
         }
 
-
         animatedSprite = source.SpriteSheet.CreateAnimatedSprite(
             animDef.TagName
         );
-        
+
         sourceRect = animDef.SourceRect?.ToRectangle() ?? Rectangle.Empty;
 
         return true;
+    }
+
+    public Dictionary<string, AnimationData> GetCharacterAnimations(string characterName)
+    { 
+        if (!_characterDefinitions.TryGetValue(characterName, out var charDef))
+        {
+            throw new KeyNotFoundException($"未找到角色 '{characterName}' 的定义。");
+        }
+
+        var animationData = new Dictionary<string, AnimationData>();
+
+        foreach (var animDef in charDef.Animations)
+        {
+            if (TryGetAnimateSprite(characterName, animDef.Key, out var animatedSprite, out var sourceRect))
+            {
+                animationData[animDef.Key] = new AnimationData
+                {
+                    AnimatedSprite = animatedSprite,
+                    SourceRect = sourceRect
+                };
+            }
+            else
+            {
+                Console.WriteLine($"动画 '{animDef.Key}' 加载失败。");
+            }
+        }
+
+        return animationData;     
     }
 }

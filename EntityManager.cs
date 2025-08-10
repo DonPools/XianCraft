@@ -1,18 +1,21 @@
 using DefaultEcs;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
+using System.Collections.Generic;
 
 namespace XianCraft;
 
 public class EnitityManager
 {
     World _world;
+    AssetManager _assetManager;
 
-    public EnitityManager(World world)
+    public EnitityManager(World world, AssetManager assetManager)
     {
         _world = world;
+        _assetManager = assetManager;
     }
-
+    
     public Entity CreateCameraEntity()
     {
         var entity = _world.CreateEntity();
@@ -33,11 +36,15 @@ public class EnitityManager
     }
 
     public Entity CreatePlayerEntity()
-    {
+    {        
         var entity = _world.CreateEntity();
         entity.Set(new Player());
-        entity.Set(new Position { Value = Vector2.Zero });
+        entity.Set(new Position { Value = new Vector2(1, 1) });
         entity.Set(new Movement());
+        entity.Set(new CharacterAnimateState
+        {
+            Animations = _assetManager.GetCharacterAnimations("wolf")
+        });
         return entity;
     }
 
