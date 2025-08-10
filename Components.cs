@@ -94,6 +94,8 @@ public class CharacterAnimateState
 {
     public Dictionary<string, AnimationData> Animations;
 
+    public string Direction = "Down"; // 当前方向
+    
     public string CurrentAnimationName;
     public AnimatedSprite CurrentAnimation;
     public Rectangle SourceRectangle;
@@ -105,9 +107,9 @@ public class Movement
     public Vector2 Velocity { get; set; } = Vector2.Zero;  // 当前速度向量
     public Vector2 TargetDirection { get; set; } = Vector2.Zero; // 目标方向
 
-    public float Acceleration = 500f; // 加速度
-    public float Deceleration = 800f; // 减速度
-    public float MaxSpeed = 200f;     // 最大速度    
+    public float Acceleration = 10f; // 加速度
+    public float Deceleration = 16f; // 减速度
+    public float MaxSpeed = 8f;     // 最大速度    
 }
 
 public class Player { }

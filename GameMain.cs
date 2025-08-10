@@ -62,9 +62,10 @@ public class GameMain : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
 
         _updateSystems = new SequentialSystem<GameTime>(
-            new CameraSystem(_world, GraphicsDevice),
+            new CameraSystem(_world, GraphicsDevice, _metaMap),
             new MouseInputSystem(_world, _metaMap),
             new WorldGenerationSystem(_world, _metaMap),
+            new PlayerControlSystem(_world),
             new MovementSystem(_world),
             new CharacterAnimationSystem(_world)
         );

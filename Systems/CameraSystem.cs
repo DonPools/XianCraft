@@ -12,38 +12,35 @@ namespace XianCraft.Systems;
 public class CameraSystem : AComponentSystem<GameTime, Camera>
 {
     private readonly GraphicsDevice _graphicsDevice;
+    private EntitySet _targetSet;
+    private TiledMap _metaMap;
 
-    public CameraSystem(World world, GraphicsDevice graphicsDevice) : base(world)
+    public CameraSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap) : base(world)
     {
         _graphicsDevice = graphicsDevice;
+        _metaMap = metaMap;
+        _targetSet = world.GetEntities().With<Player>().With<Position>().AsSet();
     }
 
     protected override void Update(GameTime gameTime, ref Camera camera)
     {
         var keyboardState = Keyboard.GetState();
 
-        Vector2 movement = Vector2.Zero;
-        if (keyboardState.IsKeyDown(Keys.W))
-            movement.Y -= 1;
-        if (keyboardState.IsKeyDown(Keys.S))
-            movement.Y += 1;
-        if (keyboardState.IsKeyDown(Keys.A))
-            movement.X -= 1;
-        if (keyboardState.IsKeyDown(Keys.D))
-            movement.X += 1;
-
         if (keyboardState.IsKeyDown(Keys.Q))
             camera.Zoom *= 1.01f; // 放大
         if (keyboardState.IsKeyDown(Keys.E))
             camera.Zoom *= 0.99f; // 缩小
 
-        if (movement != Vector2.Zero)
+        var entity = _targetSet.GetEntities()[0];
+        if (entity.IsAlive)
         {
-            movement.Normalize();
-            float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            camera.Position += movement * 100f * deltaTime / camera.Zoom; // 移动速度为 100单位/秒
+            ref var position = ref entity.Get<Position>();
+            camera.Position = Helper.TileToScreenCoords(
+                position.Value.X, position.Value.Y,
+                _metaMap.TileWidth, _metaMap.TileHeight
+            );
         }
-
+        
         camera.ViewportWidth = _graphicsDevice.Viewport.Width;
         camera.ViewportHeight = _graphicsDevice.Viewport.Height;
     }

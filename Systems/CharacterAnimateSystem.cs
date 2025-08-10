@@ -22,9 +22,10 @@ public class CharacterAnimationSystem : AEntitySetSystem<GameTime>
             ref var movement = ref entity.Get<Movement>();
 
             // 根据速度获得运动方向
-            string direction = GetDirectionFromVelocity(movement.Velocity);
+            string direction = GetDirectionFromVelocity(movement.Velocity, animState.Direction);
+            animState.Direction = direction; // 记录当前方向
             var animationName = movement.TargetDirection != Vector2.Zero
-                ? $"Walk_{direction}"
+                ? $"Run_{direction}"
                 : $"Idle_{direction}";
 
             if (animState.CurrentAnimationName != animationName)
@@ -41,6 +42,7 @@ public class CharacterAnimationSystem : AEntitySetSystem<GameTime>
                 }
                 else
                 {
+                    Console.WriteLine($"Warning: Animation '{animationName}' not found.");
                     // 如果没有找到对应的动画，使用默认动画
                     animState.CurrentAnimation = null; // 或者设置为一个默认动画
                     animState.SourceRectangle = Rectangle.Empty; // 或者设置为一个默认矩形
@@ -53,10 +55,10 @@ public class CharacterAnimationSystem : AEntitySetSystem<GameTime>
 
     }
 
-    private string GetDirectionFromVelocity(Vector2 velocity)
+    private string GetDirectionFromVelocity(Vector2 velocity, string currentDirection)
     {
         if (velocity == Vector2.Zero)
-            return "Down"; // 默认朝向
+            return currentDirection; // 保持原先的方向
 
         // 计算角度
         float angle = (float)Math.Atan2(velocity.Y, velocity.X);

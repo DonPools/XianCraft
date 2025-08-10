@@ -337,12 +337,6 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             DepthStencilState.None,
             RasterizerState.CullNone);
 
-        spriteBatch.DrawCircle(
-            new Vector2(camera.ViewportWidth / 2f, camera.ViewportHeight / 2f),
-            5f,
-            32,
-            Color.Red
-        );
 
         foreach (var entity in _characterSet.GetEntities())
         {
