@@ -1,6 +1,9 @@
 using System.Collections.Generic;
+using DefaultEcs;
 using Microsoft.Xna.Framework;
 using MonoGame.Aseprite;
+using MonoGame.Extended;
+using MonoGame.Extended.Collisions;
 
 namespace XianCraft.Components;
 
@@ -90,7 +93,7 @@ public class AnimateState
     public AnimatedSprite CurrentAnimation;
     public Rectangle SourceRectangle;
     public GameTime AnimationTime;
-    
+
     public void SetAnimation(string animationName)
     {
         if (Animations.TryGetValue(animationName, out var animationData))
@@ -125,3 +128,6 @@ public class Position
 {
     public Vector2 Value { get; set; }
 }
+
+public class OcclusionComponent { }
+public class CollisionComponent { }

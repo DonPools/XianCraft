@@ -11,6 +11,11 @@ using XianCraft.Renderers.Tiled;
 using MonoGame.Extended;
 using MonoGame.Extended.Shapes;
 
+using MonoGame.Extended.Collisions;
+
+using OcclusionComponent = XianCraft.Components.CollisionComponent;
+using SizeF = MonoGame.Extended.SizeF;
+
 namespace XianCraft.Systems;
 
 public class MetaTile
@@ -63,6 +68,10 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
     private EntitySet _animateRendererSet;
 
+    private readonly EntitySet _occlusionSet;
+    private SpatialHash _spatialHash;
+
+
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
         base(world.GetEntities().With<Chunk>().AsSet())
     {
@@ -78,6 +87,20 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         LoadMetaTiles(metaMap);
         _mapRenderer.LoadMap(_metaMap);
+
+
+        _occlusionSet = _world.GetEntities().With<OcclusionComponent>().AsSet();
+        _spatialHash = new SpatialHash(new SizeF(Const.ChunkSize, Const.ChunkSize));
+
+        _occlusionSet.EntityAdded += (in Entity entity) =>
+        {
+            var occlusionComponent = entity.Get<OcclusionComponent>();
+        };
+
+        _occlusionSet.EntityRemoved += (in Entity entity) =>
+        {
+            var collisionComponent = entity.Get<OcclusionComponent>();
+        };
     }
 
     private void LoadMetaTiles(TiledMap metaMap)

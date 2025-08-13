@@ -9,7 +9,7 @@ namespace XianCraft.Systems;
 public class MovementSystem : AEntitySetSystem<GameTime>
 {
     private readonly World _world;
-    private EntitySet _chunkSet;
+    private readonly EntitySet _chunkSet;
 
     public MovementSystem(World world) : base(world.GetEntities().With<Movement>().With<Position>().AsSet())
     {
@@ -54,15 +54,12 @@ public class MovementSystem : AEntitySetSystem<GameTime>
         var srcPos = position.Value;
         var dstPos = position.Value + movement.Velocity * deltaTime;
         if (srcPos == dstPos)
-            return; // 没有移动        
+            return; // 没有移动
 
-        // 获取最后可达点
-        var finalPos = FindLastAccessiblePoint(srcPos, dstPos, out bool shouldStop);
+        // 没有碰撞组件的实体，只检查地形碰撞
+        var finalPos = FindFinalPosByTerrain(srcPos, dstPos, out var shouldStop);
         if (shouldStop)
-        {
             movement.Velocity = Vector2.Zero;
-            return;
-        }
 
         position.Value = finalPos;
     }
@@ -80,53 +77,72 @@ public class MovementSystem : AEntitySetSystem<GameTime>
     }
 
     // 返回最后一个可达点，如果全程可达则返回dstPos
-    private Vector2 FindLastAccessiblePoint(Vector2 srcPos, Vector2 dstPos, out bool shouldStop)
+    private Vector2 FindFinalPosByTerrain(Vector2 srcPos, Vector2 dstPos, out bool shouldStop)
     {
-        Point srcTile = new Point((int)Math.Floor(srcPos.X), (int)Math.Floor(srcPos.Y));
-        Point dstTile = new Point((int)Math.Floor(dstPos.X), (int)Math.Floor(dstPos.Y));
+        const float epsilon = 0.001f;
+        float dx = dstPos.X - srcPos.X, dy = dstPos.Y - srcPos.Y;
+        shouldStop = false;
+        if (Math.Abs(dx) < 1e-6f && Math.Abs(dy) < 1e-6f)
+            return dstPos;
 
-        int x0 = srcTile.X, y0 = srcTile.Y;
-        int x1 = dstTile.X, y1 = dstTile.Y;
-        int dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0);
-        int sx = x0 < x1 ? 1 : -1;
-        int sy = y0 < y1 ? 1 : -1;
-        int err = dx - dy;
+        int startTileX = (int)Math.Floor(srcPos.X), startTileY = (int)Math.Floor(srcPos.Y);
+        var curChunkCoord = Helper.WorldPosToChunk(new Vector2(startTileX, startTileY));
+        Chunk? curChunk = GetChunk(curChunkCoord);
+        if (!IsTileWalkable(curChunk, startTileX, startTileY))
+        {
+            shouldStop = true;
+            return srcPos;
+        }
 
-        int lastX = x0, lastY = y0;
+        int stepX = Math.Sign(dx), stepY = Math.Sign(dy);
+        float stepSizeX = dx != 0 ? 1f / Math.Abs(dx) : float.MaxValue;
+        float stepSizeY = dy != 0 ? 1f / Math.Abs(dy) : float.MaxValue;
+        float tMaxX = stepX != 0 ? ((stepX > 0 ? startTileX + 1 - srcPos.X : srcPos.X - startTileX) * stepSizeX) : float.MaxValue;
+        float tMaxY = stepY != 0 ? ((stepY > 0 ? startTileY + 1 - srcPos.Y : srcPos.Y - startTileY) * stepSizeY) : float.MaxValue;
+        int curX = startTileX, curY = startTileY;
 
-        Chunk? curChunk = null;
         while (true)
         {
-            if (Helper.WorldPosToChunk(new Vector2(x0, y0)) != Helper.WorldPosToChunk(new Vector2(lastX, lastY)) || curChunk == null)
-                curChunk = GetChunk(Helper.WorldPosToChunk(new Vector2(x0, y0)));
+            if (tMaxX > 1f && tMaxY > 1f)
+                return dstPos;
 
-            if (!IsTileWalkable(curChunk, x0, y0))
+            bool moveX = tMaxX < tMaxY;
+            int nextX = curX + (moveX ? stepX : 0);
+            int nextY = curY + (moveX ? 0 : stepY);
+
+            // 只在跨chunk时重新获取chunk
+            var nextChunkCoord = Helper.WorldPosToChunk(new Vector2(nextX, nextY));
+            if (nextChunkCoord != curChunkCoord)
             {
+                curChunk = GetChunk(nextChunkCoord);
+                curChunkCoord = nextChunkCoord;
+            }
+
+            if (!IsTileWalkable(curChunk, nextX, nextY))
+            {
+                float t = Math.Max(0, (moveX ? tMaxX : tMaxY) - epsilon);
                 shouldStop = true;
-                return new Vector2(lastX + 0.5f, lastY + 0.5f);
+                return new Vector2(srcPos.X + t * dx, srcPos.Y + t * dy);
             }
-
-            if (x0 == x1 && y0 == y1)
-                break;
-
-            lastX = x0;
-            lastY = y0;
-
-            int e2 = 2 * err;
-            if (e2 > -dy)
+            if (moveX)
             {
-                err -= dy;
-                x0 += sx;
+                curX = nextX;
+                tMaxX += stepSizeX;
             }
-            if (e2 < dx)
+            else
             {
-                err += dx;
-                y0 += sy;
+                curY = nextY;
+                tMaxY += stepSizeY;
             }
         }
-        // 全程可达，返回目标点
-        shouldStop = false;
-        return dstPos;
+    }
+
+    // 辅助函数：获取指定网格的区块
+    private Chunk? GetChunkForTile(int tileX, int tileY)
+    {
+        var worldPos = new Vector2(tileX, tileY);
+        var chunkCoord = Helper.WorldPosToChunk(worldPos);
+        return GetChunk(chunkCoord);
     }
 
     // 你需要实现这个方法，根据你的地图数据判断格子是否可通行
@@ -138,10 +154,8 @@ public class MovementSystem : AEntitySetSystem<GameTime>
         int tileX = ((x % Const.ChunkSize) + Const.ChunkSize) % Const.ChunkSize;
         int tileY = ((y % Const.ChunkSize) + Const.ChunkSize) % Const.ChunkSize;
 
-        var terrain = chunk?.TerrainData[tileX, tileY];
-        if (terrain is null)
-            return false;
+        var terrain = chunk.Value.TerrainData[tileX, tileY];
 
-        return terrain?.Type != TerrainType.Water;
+        return terrain.Type != TerrainType.Water && !terrain.HasTree;
     }
 }

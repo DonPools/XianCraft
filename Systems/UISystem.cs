@@ -17,8 +17,12 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
     private EntitySet _cameraSet;
     private EntitySet _mouseInputSet;
     private EntitySet _chunkSet;
+    private EntitySet _playerSet;
+
+
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
+    private Entity _playerEntity => _playerSet.GetEntities().ToArray().FirstOrDefault();
 
     public UISystem(World world, GraphicsDevice graphicsDevice, SpriteFont font) :
         base(world.GetEntities().AsSet())
@@ -31,6 +35,7 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
 
         _cameraSet = _world.GetEntities().With<Camera>().AsSet();
         _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
+        _playerSet = _world.GetEntities().With<Player>().With<Position>().AsSet();
         _chunkSet = _world.GetEntities().With<Chunk>().AsSet();
     }
 
@@ -75,6 +80,9 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
         int gc1 = GC.CollectionCount(1);
         int gc2 = GC.CollectionCount(2);
 
+        var playerEntity = _playerEntity;
+        var playerPos = _playerEntity.Get<Position>();
+
         // 进程信息
         var process = System.Diagnostics.Process.GetCurrentProcess();
         long workingSet = process.WorkingSet64;
@@ -113,10 +121,14 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
             //Console.WriteLine($"Chunk: {chunk.Position.X}, {chunk.Position.Y} ({x}, {y})");
             if (chunk.Position.X == chunkX && chunk.Position.Y == chunkY)
             {
-                debugInfo += $"地形类型: {chunk.TerrainData[x, y].Type}";
+                debugInfo += $"地形类型: {chunk.TerrainData[x, y].Type}\n";
                 break;
             }
         }
+
+        debugInfo += $"\n[玩家信息]\n";
+        debugInfo += $"玩家位置: {playerPos.Value.X:F1}, {playerPos.Value.Y:F1}\n";        
+
 
         return debugInfo;
     }

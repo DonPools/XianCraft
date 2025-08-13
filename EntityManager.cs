@@ -1,6 +1,7 @@
 using DefaultEcs;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
+using MonoGame.Extended;
 
 namespace XianCraft;
 
@@ -14,7 +15,7 @@ public class EntityManager
         _world = world;
         _assetManager = assetManager;
     }
-    
+
     public Entity CreateCameraEntity()
     {
         var entity = _world.CreateEntity();
@@ -33,7 +34,7 @@ public class EntityManager
         ));
         return entity;
     }
-    
+
     public Entity CreateTreeEntity(Vector2 position)
     {
         var entity = _world.CreateEntity();
@@ -42,7 +43,8 @@ public class EntityManager
             Animations = _assetManager.GetCharacterAnimations("tree"),
         };
         animateState.SetAnimation("Default");
-        entity.Set(new Position { Value = position });        
+        entity.Set(new Position { Value = position });
+        entity.Set(new OcclusionComponent());
         entity.Set(animateState);
         return entity;
     }
