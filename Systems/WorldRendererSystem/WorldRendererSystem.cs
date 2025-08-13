@@ -8,6 +8,8 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using XianCraft.Renderers.Tiled;
+using MonoGame.Extended;
+using MonoGame.Extended.Shapes;
 
 namespace XianCraft.Systems;
 
@@ -45,7 +47,10 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private readonly World _world;
 
     private EntitySet _cameraSet;
+    private EntitySet _mouseInputSet;
+
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
+    private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
     private HashSet<Point> _loadedChunks = new HashSet<Point>();
 
     private TiledMap _metaMap;
@@ -56,7 +61,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
     private TiledMapEffect _effect;
 
-    private EntitySet _characterSet;
+    private EntitySet _animateRendererSet;
 
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
         base(world.GetEntities().With<Chunk>().AsSet())
@@ -64,7 +69,8 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         _world = world;
 
         _cameraSet = _world.GetEntities().With<Camera>().AsSet();
-        _characterSet = _world.GetEntities().With<Position>().With<AnimateState>().AsSet();
+        _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
+        _animateRendererSet = _world.GetEntities().With<Position>().With<AnimateState>().AsSet();
 
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
@@ -276,7 +282,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         {
             // FIXME: 这里的 GlobalIdentifier 可能需要调整
             tiledMap.AddTileset(tileset, 1);
-        }        
+        }
 
         // 这一步是最耗时的。
         _mapRenderer.LoadMap(tiledMap);
@@ -308,13 +314,31 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         var camera = _cameraEntity.Get<Camera>();
 
+        DrawMap(camera);
+
+        spriteBatch.Begin(
+            SpriteSortMode.FrontToBack,
+            BlendState.AlphaBlend,
+            SamplerState.PointClamp,
+            DepthStencilState.None,
+            RasterizerState.CullNone
+        );
+
+        DrawAniamteRenderers(spriteBatch, camera);
+        DrawMouse(spriteBatch, camera);
+
+        spriteBatch.End();
+    }
+
+    private void DrawMap(Camera camera)
+    {
         var mapOffset = Helper.TileToScreenCoords(
             _mapOffsetX, _mapOffsetY,
             _metaMap.TileWidth, _metaMap.TileHeight
         );
         var viewportOffset = new Vector2(
             camera.ViewportWidth / 2f,
-            camera.ViewportHeight / 2f - 1f * _metaMap.TileHeight
+            camera.ViewportHeight / 2f
         );
         Matrix viewMatrix2 =
             Matrix.CreateTranslation(new Vector3(-camera.Position - mapOffset + viewportOffset, 0.0f)) *
@@ -324,20 +348,15 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         Matrix projectionMatrix2 = Matrix.CreateOrthographicOffCenter(0f, camera.ViewportWidth, camera.ViewportHeight, 0f, 0f, -1f);
         _mapRenderer.Draw(ref viewMatrix2, ref projectionMatrix2, _effect);
+    }
 
-        spriteBatch.Begin(
-            SpriteSortMode.Deferred,
-            BlendState.AlphaBlend,
-            SamplerState.PointClamp,
-            DepthStencilState.None,
-            RasterizerState.CullNone);
-
-
-        foreach (var entity in _characterSet.GetEntities())
+    private void DrawAniamteRenderers(SpriteBatch spriteBatch, Camera camera)
+    {
+        foreach (var entity in _animateRendererSet.GetEntities())
         {
             ref var animateState = ref entity.Get<AnimateState>();
             ref var position = ref entity.Get<Position>();
-            
+
             if (animateState.CurrentAnimation == null)
                 continue;
 
@@ -371,10 +390,57 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                 sprite.Rotation,
                 sprite.Origin,
                 sprite.SpriteEffects,
-                sprite.LayerDepth
+                Math.Clamp((position.Value.X + position.Value.Y + 1) / 2000f, 0f, 1f)
             );
-        }
+            // draw sprite rectangle for debugging
+            spriteBatch.DrawRectangle(
+                new Rectangle(
+                    (int)(camera.ViewportWidth / 2f - scaledWidth / 2 + relPos.X),
+                    (int)(camera.ViewportHeight / 2f - scaledHeight / 2 + relPos.Y),
+                    scaledWidth,
+                    scaledHeight
+                ),
+                Color.Red,
+                1, 1f
+            );
 
-        spriteBatch.End();
+            // 在中心画一个点
+            var centerX = (int)(camera.ViewportWidth / 2f + relPos.X);
+            var centerY = (int)(camera.ViewportHeight / 2f + relPos.Y);
+            spriteBatch.DrawPoint(new Vector2(centerX, centerY), Color.Lime, 3f, 1f);
+        }
+    }
+
+    private void DrawMouse(SpriteBatch spriteBatch, Camera camera)
+    {
+        var mouseInput = _mouseEntity.Get<MouseInput>();
+
+        int tileX = (int)Math.Floor(mouseInput.WorldPosition.X);
+        int tileY = (int)Math.Floor(mouseInput.WorldPosition.Y);
+
+        var worldScreenPos = Helper.TileToScreenCoords(
+            tileX + 0.5f, tileY + 0.5f,
+            _metaMap.TileWidth, _metaMap.TileHeight
+        );
+        var relPos = (worldScreenPos - camera.Position) * camera.Zoom;
+
+        float halfWidth = _metaMap.TileWidth * camera.Zoom / 2f;
+        float halfHeight = _metaMap.TileHeight * camera.Zoom / 2f;
+
+        var center = new Vector2(
+           camera.ViewportWidth / 2f + relPos.X,
+           camera.ViewportHeight / 2f + relPos.Y
+        );
+        Vector2[] diamond =
+        [
+            new Vector2(center.X, center.Y - halfHeight), // 上
+            new Vector2(center.X + halfWidth, center.Y),  // 右
+            new Vector2(center.X, center.Y + halfHeight), // 下
+            new Vector2(center.X - halfWidth, center.Y),  // 左
+        ];
+
+        var polygon = new Polygon(diamond);
+
+        spriteBatch.DrawPolygon(Vector2.Zero, polygon, Color.Yellow, 3f);
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 
 namespace XianCraft;
@@ -18,4 +19,11 @@ public class Helper
         return new Vector2(tileY + tileX, tileY - tileX);
     }
 
+    public static Point WorldPosToChunk(Vector2 worldPos)
+    {
+        int chunkX = (int)Math.Floor(worldPos.X / Const.ChunkSize);
+        int chunkY = (int)Math.Floor(worldPos.Y / Const.ChunkSize);
+        
+        return new Point(chunkX, chunkY);
+    }
 }

@@ -20,7 +20,7 @@ public class AnimationSystem : AEntitySetSystem<GameTime>
         {
             var movement = entity.Get<Movement>();
             // 根据速度获得运动方向, TODO: 把方向从动画状态中移除
-            string direction = GetDirectionFromVelocity(movement.Velocity, animState.Direction);
+            string direction = GetDirectionFromVelocity(movement.TargetDirection, animState.Direction);
             animState.Direction = direction; // 记录当前方向
             var animationName = movement.TargetDirection != Vector2.Zero
                 ? $"Run_{direction}"
@@ -35,13 +35,13 @@ public class AnimationSystem : AEntitySetSystem<GameTime>
 
     }
 
-    private string GetDirectionFromVelocity(Vector2 velocity, string currentDirection)
+    private string GetDirectionFromVelocity(Vector2 targetDirection, string currentDirection)
     {
-        if (velocity == Vector2.Zero)
+        if (targetDirection == Vector2.Zero)
             return currentDirection; // 保持原先的方向
 
         // 计算角度
-        float angle = (float)Math.Atan2(velocity.Y, velocity.X);
+        float angle = (float)Math.Atan2(targetDirection.Y, targetDirection.X);
 
         // 将角度转换为度数并标准化到 0-360 范围
         float degrees = MathHelper.ToDegrees(angle);

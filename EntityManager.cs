@@ -51,7 +51,7 @@ public class EntityManager
     {
         var entity = _world.CreateEntity();
         entity.Set(new Player());
-        entity.Set(new Position { Value = new Vector2(1, 1) });
+        entity.Set(new Position { Value = new Vector2(0, 0) });
         entity.Set(new Movement());
         entity.Set(new AnimateState
         {
