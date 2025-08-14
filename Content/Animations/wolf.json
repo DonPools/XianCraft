@@ -5,6 +5,10 @@
         "X": 0,
         "Y": -8
     },
+    "Size": {
+        "Width": 64,
+        "Height": 64
+    },
     "Animations": {
         "Run_Down": {
             "TagName": "run",

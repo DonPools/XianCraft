@@ -90,7 +90,6 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
 
         var debugInfo = $"[内存/GC]" +
                         $"\n托管堆内存: {totalMemory / 1024 / 1024:F2} MB" +
-                        $"\nGC次数: Gen0={gc0}, Gen1={gc1}, Gen2={gc2}" +
                         $"\n工作集: {workingSet / 1024 / 1024:F2} MB" +
                         $"\n句柄数: {handleCount}";
 

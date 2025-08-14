@@ -5,13 +5,17 @@
         "X": 0,
         "Y": -26
     },
+    "Size": {
+        "Width": 64,
+        "Height": 64
+    },
     "Animations": {
         "Default": {
             "TagName": "default",
             "SourceRect": {
-                "X": 10,
+                "X": 0,
                 "Y": 0,
-                "Width": 44,
+                "Width": 64,
                 "Height": 64
             }
         }

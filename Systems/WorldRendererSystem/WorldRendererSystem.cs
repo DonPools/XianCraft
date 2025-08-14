@@ -53,9 +53,12 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
     private EntitySet _cameraSet;
     private EntitySet _mouseInputSet;
+    private EntitySet _playerSet;
 
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
+    private Entity _playerEntity => _playerSet.GetEntities().ToArray().FirstOrDefault();
+
     private HashSet<Point> _loadedChunks = new HashSet<Point>();
 
     private TiledMap _metaMap;
@@ -65,12 +68,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private int _mapOffsetY = 0;
 
     private TiledMapEffect _effect;
-
     private EntitySet _animateRendererSet;
-
-    private readonly EntitySet _occlusionSet;
-    private SpatialHash _spatialHash;
-
 
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
         base(world.GetEntities().With<Chunk>().AsSet())
@@ -84,23 +82,10 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
         _effect = new TiledMapEffect(effect);
+        _playerSet = _world.GetEntities().With<Player>().AsSet();
 
         LoadMetaTiles(metaMap);
         _mapRenderer.LoadMap(_metaMap);
-
-
-        _occlusionSet = _world.GetEntities().With<OcclusionComponent>().AsSet();
-        _spatialHash = new SpatialHash(new SizeF(Const.ChunkSize, Const.ChunkSize));
-
-        _occlusionSet.EntityAdded += (in Entity entity) =>
-        {
-            var occlusionComponent = entity.Get<OcclusionComponent>();
-        };
-
-        _occlusionSet.EntityRemoved += (in Entity entity) =>
-        {
-            var collisionComponent = entity.Get<OcclusionComponent>();
-        };
     }
 
     private void LoadMetaTiles(TiledMap metaMap)
@@ -350,9 +335,6 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         DrawEntities(spriteBatch, camera);
         DrawMouse(spriteBatch, camera);
 
-        var debugPolyon = BuildTileOutline(0, 0, camera); // 调试用，绘制中心点
-        spriteBatch.DrawPolygon(Vector2.Zero, debugPolyon, Color.Red, 2f);
-
         spriteBatch.End();
     }
 
@@ -376,8 +358,96 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         _mapRenderer.Draw(ref viewMatrix2, ref projectionMatrix2, _effect);
     }
 
+    private bool TexturesIntersect(Entity a, Entity b)
+    {
+        var aBox = GetBoundingBox(a);
+        var bBox = GetBoundingBox(b);
+
+        if (!aBox.Intersects(bBox))
+            return false;
+
+        var aState = a.Get<AnimateState>();
+        var bState = b.Get<AnimateState>();
+
+        var aTex = aState.CurrentAnimation.TextureRegion.Texture;
+        var bTex = bState.CurrentAnimation.TextureRegion.Texture;
+
+        // 计算实际在大纹理集中的区域
+        var aRegion = new Rectangle(
+            aState.SourceRectangle.X + aState.CurrentAnimation.TextureRegion.Bounds.X,
+            aState.SourceRectangle.Y + aState.CurrentAnimation.TextureRegion.Bounds.Y,
+            aState.SourceRectangle.Width,
+            aState.SourceRectangle.Height
+        );
+        var bRegion = new Rectangle(
+            bState.SourceRectangle.X + bState.CurrentAnimation.TextureRegion.Bounds.X,
+            bState.SourceRectangle.Y + bState.CurrentAnimation.TextureRegion.Bounds.Y,
+            bState.SourceRectangle.Width,
+            bState.SourceRectangle.Height
+        );
+
+        // 计算交集区域（世界坐标）
+        var intersect = aBox.Intersection(bBox);
+        if (intersect.Width <= 0 || intersect.Height <= 0)
+            return false;
+
+        // 读取像素数据
+        Color[] aData = new Color[aRegion.Width * aRegion.Height];
+        Color[] bData = new Color[bRegion.Width * bRegion.Height];
+        aTex.GetData(0, aRegion, aData, 0, aData.Length);
+        bTex.GetData(0, bRegion, bData, 0, bData.Length);
+
+        // 遍历交集区域
+        for (int y = 0; y < intersect.Height; y++)
+        {
+            for (int x = 0; x < intersect.Width; x++)
+            {
+                int ax = (int)(intersect.X - aBox.X + x);
+                int ay = (int)(intersect.Y - aBox.Y + y);
+                int bx = (int)(intersect.X - bBox.X + x);
+                int by = (int)(intersect.Y - bBox.Y + y);
+
+                if (ax < 0 || ay < 0 || bx < 0 || by < 0 ||
+                    ax >= aRegion.Width || ay >= aRegion.Height ||
+                    bx >= bRegion.Width || by >= bRegion.Height)
+                    continue;
+
+                Color aPixel = aData[ay * aRegion.Width + ax];
+                Color bPixel = bData[by * bRegion.Width + bx];
+
+                if (aPixel.A > 0 && bPixel.A > 0)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private RectangleF GetBoundingBox(Entity entity)
+    {
+        ref var position = ref entity.Get<Position>();
+        ref var animateState = ref entity.Get<AnimateState>();
+
+        var sourceRect = animateState.SourceRectangle;
+        var origin = animateState.Origin;
+
+        var worldScreenPos = Helper.TileToScreenCoords(
+            position.Value.X, position.Value.Y,
+            _metaMap.TileWidth, _metaMap.TileHeight
+        );
+
+        return new RectangleF(
+            worldScreenPos.X + origin.X,
+            worldScreenPos.Y + origin.Y,
+            sourceRect.Width,
+            sourceRect.Height
+        );
+    }
+
     private void DrawEntities(SpriteBatch spriteBatch, Camera camera)
     {
+        var playerBoundingBox = GetBoundingBox(_playerEntity);
+        var playerPos = _playerEntity.Get<Position>();
+
         foreach (var entity in _animateRendererSet.GetEntities())
         {
             ref var animateState = ref entity.Get<AnimateState>();
@@ -389,6 +459,16 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             var sprite = animateState.CurrentAnimation;
             var sourceRect = animateState.SourceRectangle;
             var origin = animateState.Origin;
+            var transparency = 1f;
+
+            if (animateState.EntityName == "tree")
+            {
+                var treeBoundingBox = GetBoundingBox(entity);
+                if (treeBoundingBox.Intersects(playerBoundingBox))
+                    if ((playerPos.Value.X + playerPos.Value.Y) < (position.Value.X + position.Value.Y))
+                        if (TexturesIntersect(entity, _playerEntity))
+                            transparency = 0.5f;
+            }
 
             var scaledWidth = (int)(sourceRect.Width * camera.Zoom);
             var scaledHeight = (int)(sourceRect.Height * camera.Zoom);
@@ -413,7 +493,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                     sourceRect.Width,
                     sourceRect.Height
                 ),
-                sprite.Color * sprite.Transparency,
+                sprite.Color * sprite.Transparency * transparency,
                 sprite.Rotation,
                 sprite.Origin,
                 sprite.SpriteEffects,
@@ -421,6 +501,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             );
 
             // draw sprite rectangle for debugging
+            /*
             spriteBatch.DrawRectangle(
                 new Rectangle(
                     (int)(camera.ViewportWidth / 2f - scaledWidth / 2 + relPos.X),
@@ -431,11 +512,17 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                 Color.Red,
                 1, 1f
             );
+            */
+
+            var outline = BuildTileOutline(position.Value.X, position.Value.Y, camera);
+            spriteBatch.DrawPolygon(Vector2.Zero, outline, Color.White, 2f,
+                Math.Clamp((position.Value.X + position.Value.Y + 1) / 2000f, 0f, 1f) * 0.99f
+            );
         }
     }
 
     private Polygon BuildTileOutline(float worldX, float worldY, Camera camera)
-    {        
+    {
         var worldScreenPos = Helper.TileToScreenCoords(
             worldX, worldY,
             _metaMap.TileWidth, _metaMap.TileHeight
@@ -466,8 +553,8 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         int tileX = (int)Math.Floor(mouseInput.WorldPosition.X);
         int tileY = (int)Math.Floor(mouseInput.WorldPosition.Y);
-        
-        var polygon = BuildTileOutline(tileX+ 0.5f, tileY + 0.5f, camera);
+
+        var polygon = BuildTileOutline(tileX + 0.5f, tileY + 0.5f, camera);
         spriteBatch.DrawPolygon(Vector2.Zero, polygon, Color.Yellow, 3f);
     }
 }
