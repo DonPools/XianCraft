@@ -3,8 +3,7 @@ using DefaultEcs.System;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using System;
-using System.Linq;
+using Microsoft.Xna.Framework.Input;
 
 namespace XianCraft.Systems;
 
@@ -13,7 +12,10 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
     private readonly World _world;
     private readonly SpriteFont _font;
     private Texture2D _pixelTexture;
-    
+
+    private static bool _showSystemInfo = false;
+    private static KeyboardState _lastKeyboardState;
+
     public UISystem(World world, GraphicsDevice graphicsDevice, SpriteFont font) :
         base(world.GetEntities().With<DebugInfo>().AsSet())
     {
@@ -27,9 +29,27 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
 
     protected override void Update(SpriteBatch spriteBatch, in Entity entity)
     {
-        var debugInfo = entity.Get<DebugInfo>();
+        // 检查 F1 是否被按下
+        var keyboardState = Keyboard.GetState();
+        if (keyboardState.IsKeyDown(Keys.F1) && !_lastKeyboardState.IsKeyDown(Keys.F1))
+        {
+            _showSystemInfo = !_showSystemInfo;
+        }
+        _lastKeyboardState = keyboardState;
 
+        var debugInfo = entity.Get<DebugInfo>();
         spriteBatch.Begin();
+
+        if (_showSystemInfo)
+        {
+            DrawSystemInfo(spriteBatch, debugInfo);
+        }
+
+        spriteBatch.End();
+    }
+
+    private void DrawSystemInfo(SpriteBatch spriteBatch, DebugInfo debugInfo)
+    {        
 
         var systemInfo = debugInfo.SystemInfo;
         var textSize = _font.MeasureString(systemInfo);
@@ -52,7 +72,6 @@ public class UISystem : AEntitySetSystem<SpriteBatch>
         // 绘制主文字
         spriteBatch.DrawString(_font, systemInfo, position, Color.White);
 
-        spriteBatch.End();
     }
 
 

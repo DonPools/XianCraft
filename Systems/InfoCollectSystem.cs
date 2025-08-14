@@ -8,7 +8,7 @@ using XianCraft.Components;
 
 namespace XianCraft.Systems;
 
-public class DebugSystem : AEntitySetSystem<GameTime>
+public class InfoCollectSystem : AEntitySetSystem<GameTime>
 {
     private readonly World _world;
 
@@ -28,7 +28,7 @@ public class DebugSystem : AEntitySetSystem<GameTime>
     private Entity _playerEntity => _playerSet.GetEntities().ToArray().FirstOrDefault();
 
 
-    public DebugSystem(World world) : base(world.GetEntities().With<DebugInfo>().AsSet())
+    public InfoCollectSystem(World world) : base(world.GetEntities().With<DebugInfo>().AsSet())
     {
         _world = world;
 

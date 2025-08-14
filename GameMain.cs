@@ -39,8 +39,7 @@ public class GameMain : Game
 
     protected override void Initialize()
     {
-        _world = new World();
-        
+        _world = new World();        
 
         base.Initialize();
     }
@@ -61,14 +60,14 @@ public class GameMain : Game
 
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
 
-        _updateSystems = new SequentialSystem<GameTime>(
-            new CameraSystem(_world, GraphicsDevice, _metaMap),
+        _updateSystems = new SequentialSystem<GameTime>(            
             new MouseInputSystem(_world, _metaMap),
             new WorldGenerationSystem(_world, _entityManager, _metaMap),
             new PlayerControlSystem(_world),
             new MovementSystem(_world),
+            new CameraSystem(_world, GraphicsDevice, _metaMap),
             new AnimationSystem(_world),
-            new DebugSystem(_world)
+            new InfoCollectSystem(_world)
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(
