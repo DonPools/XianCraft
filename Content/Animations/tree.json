@@ -1,6 +1,10 @@
 {
     "Name": "tree",
     "File": "Aseprite/tree",
+    "Origin": {
+        "X": 0,
+        "Y": -26
+    },
     "Animations": {
         "Default": {
             "TagName": "default",

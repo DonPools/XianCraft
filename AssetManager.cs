@@ -7,7 +7,8 @@ using System.IO;
 using System.Text.Json;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
 using MonoGame.Aseprite;
-
+using MonoGame.Extended;
+using Microsoft.Xna.Framework;
 
 public class RectangleData
 {
@@ -21,6 +22,19 @@ public class RectangleData
     public override string ToString() => $"X:{X}, Y:{Y}, W:{Width}, H:{Height}";
 }
 
+public class OriginData
+{
+    public float X { get; init; }
+    public float Y { get; init; }
+    public Vector2 ToVector2() => new Vector2(X, Y);
+}
+
+public class AnimationData
+{
+    public AnimatedSprite AnimatedSprite { get; set; }
+    public Rectangle SourceRect { get; set; }
+}
+
 /// <summary>
 /// 单个动画定义，对应 Aseprite 文件中的 Tag。
 /// </summary>
@@ -30,24 +44,32 @@ public class AnimationDefinition
     public RectangleData SourceRect { get; init; }
 }
 
-public class AnimationData
-{ 
-    public AnimatedSprite AnimatedSprite { get; set; }
-    public Rectangle SourceRect { get; set; }
-}
-
 /// <summary>
-/// 角色定义，指向包含所有动画 Tag 的单个精灵文件。
+/// 定义，指向包含所有动画 Tag 的单个精灵文件。
 /// </summary>
-public class CharacterDefinition
+public class EntityConfig
 {
     public string Name { get; init; }
     public string File { get; init; }
+    public OriginData Origin { get; init; } // 改为 OriginData
     public Dictionary<string, AnimationDefinition> Animations { get; init; } = new();
+
+    public override string ToString()
+    {
+        return $"Name: {Name}, File: {File}, Origin: {Origin}, Animations: {Animations.Count}";
+    }
+}
+
+
+public class EntityAsset
+{
+    public string Name { get; set; }
+    public Vector2 Origin { get; set; }
+    public Dictionary<string, AnimationData> Animations { get; set; } = new();
 }
 
 /// <summary>
-/// 数据驱动的资源管理器，用于加载和提供 Aseprite Tag 的角色动画。
+/// 数据驱动的资源管理器，用于加载和提供 Aseprite Tag 的实体动画。
 /// </summary>
 public class AssetManager
 {
@@ -78,8 +100,8 @@ public class AssetManager
     private readonly ContentManager _contentManager;
     private readonly GraphicsDevice _graphicsDevice;
 
-    // 角色定义缓存：角色名 -> 角色定义
-    private Dictionary<string, CharacterDefinition> _characterDefinitions = new();
+    // 实体定义：实体名 -> 实体定义
+    private Dictionary<string, EntityConfig> _entityConfigs = new();
 
     // 资源缓存：精灵文件名 -> AnimationSource
     private readonly Dictionary<string, AnimationSource> _sourceCache = new();
@@ -92,16 +114,16 @@ public class AssetManager
 
     public void Initialize()
     {
-        // 在这里可以加载默认的角色定义或其他初始化逻辑
-        LoadDefinitions("Animations/wolf.json");
-        LoadDefinitions("Animations/tree.json");
+        // 在这里可以加载默认的实体定义或其他初始化逻辑
+        LoadConfig("Animations/wolf.json");
+        LoadConfig("Animations/tree.json");
     }
 
     /// <summary>
-    /// 从指定 JSON 文件加载所有角色定义。
+    /// 从指定 JSON 文件加载所有实体定义。
     /// </summary>
     /// <param name="jsonFilePath">相对于 Content 根目录的 JSON 文件路径。</param>
-    public void LoadDefinitions(string jsonFilePath)
+    public void LoadConfig(string jsonFilePath)
     {
         try
         {
@@ -109,16 +131,17 @@ public class AssetManager
             using var jsonText = File.OpenText(fullPath);
             var json = jsonText.ReadToEnd();
 
-            var def = JsonSerializer.Deserialize<CharacterDefinition>(json);
-            if (def == null || string.IsNullOrEmpty(def.Name) || string.IsNullOrEmpty(def.File))
+            var config = JsonSerializer.Deserialize<EntityConfig>(json);
+            if (config == null || string.IsNullOrEmpty(config.Name) || string.IsNullOrEmpty(config.File))
             {
-                throw new InvalidOperationException($"角色定义文件 '{jsonFilePath}' 格式不正确或缺少必要字段。");
+                throw new InvalidOperationException($"实体定义文件 '{jsonFilePath}' 格式不正确或缺少必要字段。");
             }
-            _characterDefinitions[def.Name] = def;
+            _entityConfigs[config.Name] = config;
+            Console.WriteLine($"已加载实体定义: {config})");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"加载角色定义失败: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"加载实体定义失败: {ex.Message}");
             throw;
         }
     }
@@ -127,31 +150,31 @@ public class AssetManager
     /// 获取指定动画当前帧的纹理和源矩形。
     /// </summary>
     /// <returns>找到帧返回 true，否则返回 false。</returns>
-    public bool TryGetAnimateSprite(string characterName, string animationName, out AnimatedSprite animatedSprite, out Rectangle sourceRect)
+    private bool TryGetAnimateSprite(string entityName, string animationName, out AnimatedSprite animatedSprite, out Rectangle sourceRect)
     {
         sourceRect = Rectangle.Empty;
         animatedSprite = null;
 
-        // 1. 查找角色和动画定义
-        if (!_characterDefinitions.TryGetValue(characterName, out var charDef) ||
-            !charDef.Animations.TryGetValue(animationName, out var animDef))
+        // 1. 查找实体和动画定义
+        if (!_entityConfigs.TryGetValue(entityName, out var entityConfig) ||
+            !entityConfig.Animations.TryGetValue(animationName, out var animDef))
         {
-            Console.WriteLine($"未找到角色 '{characterName}' 或动画 '{animationName}' 的定义。");
+            Console.WriteLine($"未找到实体 '{entityName}' 或动画 '{animationName}' 的定义。");
             return false;
         }
 
         // 2. 获取或加载动画资源
-        if (!_sourceCache.TryGetValue(charDef.File, out var source))
+        if (!_sourceCache.TryGetValue(entityConfig.File, out var source))
         {
             try
             {
-                var aseFile = _contentManager.Load<AsepriteFile>(charDef.File);
+                var aseFile = _contentManager.Load<AsepriteFile>(entityConfig.File);
                 source = new AnimationSource(aseFile, _graphicsDevice);
-                _sourceCache[charDef.File] = source;
+                _sourceCache[entityConfig.File] = source;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"加载动画资源 '{charDef.File}' 失败: {ex.Message}");
+                Console.WriteLine($"加载动画资源 '{entityConfig.File}' 失败: {ex.Message}");
                 return false;
             }
         }
@@ -165,18 +188,18 @@ public class AssetManager
         return true;
     }
 
-    public Dictionary<string, AnimationData> GetCharacterAnimations(string characterName)
-    { 
-        if (!_characterDefinitions.TryGetValue(characterName, out var charDef))
+    public EntityAsset GetEntityAsset(string entityName)
+    {
+        if (!_entityConfigs.TryGetValue(entityName, out var entityConfig))
         {
-            throw new KeyNotFoundException($"未找到角色 '{characterName}' 的定义。");
+            throw new KeyNotFoundException($"未找到实体 '{entityName}' 的定义。");
         }
 
         var animationData = new Dictionary<string, AnimationData>();
 
-        foreach (var animDef in charDef.Animations)
+        foreach (var animDef in entityConfig.Animations)
         {
-            if (TryGetAnimateSprite(characterName, animDef.Key, out var animatedSprite, out var sourceRect))
+            if (TryGetAnimateSprite(entityName, animDef.Key, out var animatedSprite, out var sourceRect))
             {
                 animationData[animDef.Key] = new AnimationData
                 {
@@ -190,6 +213,11 @@ public class AssetManager
             }
         }
 
-        return animationData;     
+        return new EntityAsset
+        {
+            Name = entityConfig.Name,
+            Origin = entityConfig.Origin?.ToVector2() ?? Vector2.Zero,
+            Animations = animationData
+        };
     }
 }

@@ -89,6 +89,8 @@ public class AnimateState
 
     public string Direction = "Down"; // 当前方向
 
+    public string EntityName = "";
+    public Vector2 Origin = new Vector2(0, 0); // 原点偏移
     public string CurrentAnimationName;
     public AnimatedSprite CurrentAnimation;
     public Rectangle SourceRectangle;

@@ -56,8 +56,8 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
                 if (terrain.HasTree)
                 {
                     var position = new Vector2(
-                        chunkPos.X * Const.ChunkSize + i,
-                        chunkPos.Y * Const.ChunkSize + j
+                        chunkPos.X * Const.ChunkSize + i + 0.5f,
+                        chunkPos.Y * Const.ChunkSize + j + 0.5f
                     );
                     var treeEntity = _entityManager.CreateTreeEntity(position);
                     enityList.Add(treeEntity);

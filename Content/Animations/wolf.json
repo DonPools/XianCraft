@@ -1,6 +1,10 @@
 {
     "Name": "wolf",
     "File": "Aseprite/wolf",
+    "Origin": {
+        "X": 0,
+        "Y": -8
+    },
     "Animations": {
         "Run_Down": {
             "TagName": "run",
@@ -26,7 +30,7 @@
                 "X": 0,
                 "Y": 128,
                 "Width": 64,
-                "Height": 64 
+                "Height": 64
             }
         },
         "Run_Up": {

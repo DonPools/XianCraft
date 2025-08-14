@@ -37,12 +37,16 @@ public class EntityManager
 
     public Entity CreateTreeEntity(Vector2 position)
     {
-        var entity = _world.CreateEntity();
+        var entityAsset = _assetManager.GetEntityAsset("tree");        
         var animateState = new AnimateState
         {
-            Animations = _assetManager.GetCharacterAnimations("tree"),
+            EntityName = entityAsset.Name,
+            Origin = entityAsset.Origin,
+            Animations = entityAsset.Animations,
         };
         animateState.SetAnimation("Default");
+
+        var entity = _world.CreateEntity();
         entity.Set(new Position { Value = position });
         entity.Set(new OcclusionComponent());
         entity.Set(animateState);
@@ -51,13 +55,17 @@ public class EntityManager
 
     public Entity CreatePlayerEntity()
     {
+        var entityAsset = _assetManager.GetEntityAsset("wolf");
+
         var entity = _world.CreateEntity();
         entity.Set(new Player());
-        entity.Set(new Position { Value = new Vector2(0, 0) });
+        entity.Set(new Position { Value = new Vector2(8.5f, 5.5f) });
         entity.Set(new Movement());
         entity.Set(new AnimateState
         {
-            Animations = _assetManager.GetCharacterAnimations("wolf")
+            EntityName = entityAsset.Name,
+            Origin = entityAsset.Origin,
+            Animations = entityAsset.Animations,
         });
         return entity;
     }
