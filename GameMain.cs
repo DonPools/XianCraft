@@ -67,7 +67,8 @@ public class GameMain : Game
             new WorldGenerationSystem(_world, _entityManager, _metaMap),
             new PlayerControlSystem(_world),
             new MovementSystem(_world),
-            new AnimationSystem(_world)
+            new AnimationSystem(_world),
+            new DebugSystem(_world)
         );
 
         _renderSystems = new SequentialSystem<SpriteBatch>(

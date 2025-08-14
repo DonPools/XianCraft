@@ -16,6 +16,13 @@ public class EntityManager
         _assetManager = assetManager;
     }
 
+    public Entity CreateGlobalStateEntity()
+    {
+        var entity = _world.CreateEntity();
+        entity.Set(new DebugInfo());
+        return entity;
+    }
+
     public Entity CreateCameraEntity()
     {
         var entity = _world.CreateEntity();
@@ -37,7 +44,7 @@ public class EntityManager
 
     public Entity CreateTreeEntity(Vector2 position)
     {
-        var entityAsset = _assetManager.GetEntityAsset("tree");        
+        var entityAsset = _assetManager.GetEntityAsset("tree");
         var animateState = new AnimateState
         {
             EntityName = entityAsset.Name,
@@ -72,6 +79,7 @@ public class EntityManager
 
     public void Initialize()
     {
+        CreateGlobalStateEntity();
         CreateCameraEntity();
         CreateMouseInputEntity();
         CreatePlayerEntity();

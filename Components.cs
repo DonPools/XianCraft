@@ -66,23 +66,6 @@ public struct Camera
     }
 }
 
-public enum MovementType { Idle, Walk, Run }
-public enum FacingDirection { Up, Down, Left, Right }
-
-enum CharacterState
-{
-    Idle,
-    Run,
-}
-
-enum CharacterDirection
-{
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
 public class AnimateState
 {
     public Dictionary<string, AnimationData> Animations;
@@ -129,6 +112,11 @@ public class Player { }
 public class Position
 {
     public Vector2 Value { get; set; }
+}
+
+public class DebugInfo
+{ 
+    public string SystemInfo { get; set; } = string.Empty;
 }
 
 public class OcclusionComponent { }
