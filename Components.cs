@@ -1,11 +1,10 @@
 using System.Collections.Generic;
-using DefaultEcs;
 using Microsoft.Xna.Framework;
 using MonoGame.Aseprite;
-using MonoGame.Extended;
-using MonoGame.Extended.Collisions;
 
 namespace XianCraft.Components;
+
+public class GlobalState { }
 
 /// <summary>
 /// 地形方块类型枚举 - 简化版，只有陆地和水
@@ -28,6 +27,56 @@ public struct Terrain
     public bool HasTree; // 是否有树
 }
 
+public class TerrainMap
+{
+    private int minX, minY, maxX, maxY;
+    private Terrain[,] data;
+
+    public TerrainMap(int minX, int minY, int maxX, int maxY)
+    {
+        this.minX = minX;
+        this.minY = minY;
+        this.maxX = maxX;
+        this.maxY = maxY;
+        data = new Terrain[maxX - minX + 1, maxY - minY + 1];
+    }
+
+    // 获取或设置任意位置的值
+    public Terrain this[int x, int y]
+    {
+        get
+        {
+            return data[x - minX, y - minY];
+        }
+        set
+        {
+            data[x - minX, y - minY] = value;
+        }
+    }
+
+    public int MinX => minX;
+    public int MinY => minY;
+    public int MaxX => maxX;
+    public int MaxY => maxY;
+
+    public int Width => maxX - minX + 1;
+    public int Height => maxY - minY + 1;
+
+    public string GetHash()
+    {
+        return $"{minX},{minY},{maxX},{maxY}";
+    }
+
+    public bool IsWalkable(int x, int y)
+    {
+        if (x < minX || x > maxX || y < minY || y > maxY)
+            return false;
+
+        var terrain = this[x, y];
+        return terrain.Type != TerrainType.Water && !terrain.HasTree;
+    }
+}
+
 // 区块组件 - 表示一个16x16的地形区块
 public struct Chunk
 {
@@ -42,14 +91,8 @@ public struct MouseInput
     public Vector2 WorldPosition;
     public bool LeftButton;
     public bool RightButton;
-
-    public MouseInput(Vector2 position, Vector2 worldPosition, bool leftButton, bool rightButton)
-    {
-        Position = position;
-        WorldPosition = worldPosition;
-        LeftButton = leftButton;
-        RightButton = rightButton;
-    }
+    public bool PreviousLeftButton;
+    public bool PreviousRightButton;
 }
 
 public struct Camera
@@ -97,14 +140,48 @@ public class AnimateState
     }
 }
 
-public class Movement
+// 输入控制
+struct MoveCommand
 {
-    public Vector2 Velocity { get; set; } = Vector2.Zero;  // 当前速度向量
-    public Vector2 TargetDirection { get; set; } = Vector2.Zero; // 目标方向
+    public Vector2 TargetPosition;   // 鼠标点击的目标位置
+}
 
-    public float Acceleration = 256f; // 加速度
-    public float Deceleration = 256f; // 减速度
-    public float MaxSpeed = 16f;     // 最大速度    
+// 寻路数据
+struct PathData
+{
+    public List<Point> Path;
+}
+
+// 移动属性
+struct Movement
+{
+    public float CurrentSpeed; // 当前速度
+    public float MoveSpeed;     // 移动速度 (units/sec)
+    public float StopDistance;  // 到达目标的判定距离
+
+    override public string ToString()
+    {
+        return $"Speed: {MoveSpeed}, StopDistance: {StopDistance}";
+    }
+}
+
+
+// 方向状态 (用于动画控制)
+public enum Direction : byte
+{
+    Up, Down, Left, Right,
+}
+
+struct Facing
+{
+    public Direction Value;
+    public float Angle; // 方向角度（弧度制）
+}
+
+// 碰撞数据
+struct CircleCollider
+{
+    public float Radius;      // 圆形碰撞半径
 }
 
 public class Player { }
@@ -115,9 +192,6 @@ public class Position
 }
 
 public class DebugInfo
-{ 
+{
     public string SystemInfo { get; set; } = string.Empty;
 }
-
-public class OcclusionComponent { }
-public class CollisionComponent { }

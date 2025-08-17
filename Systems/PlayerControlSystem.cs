@@ -1,37 +1,36 @@
 using DefaultEcs;
 using DefaultEcs.System;
+using System.Linq;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Input;
+using System;
 
 
 public class PlayerControlSystem : AEntitySetSystem<GameTime>
 {
     private readonly World _world;
+    private readonly EntitySet _mouseInputSet;
+
+    private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
+
     public PlayerControlSystem(World world) : base(
         world.GetEntities().With<Player>().With<Movement>().AsSet())
     {
         _world = world;
+        _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
     }
 
     protected override void Update(GameTime gameTime, in Entity entity)
     {
-        ref var movement = ref entity.Get<Movement>();
-        movement.TargetDirection = GetInputDirection();
-    }
-
-
-    private static Vector2 GetInputDirection()
-    {
-        Vector2 direction = Vector2.Zero;
-        KeyboardState keyboardState = Keyboard.GetState();
-
-        if (keyboardState.IsKeyDown(Keys.W)) direction.Y -= 1;
-        if (keyboardState.IsKeyDown(Keys.S)) direction.Y += 1;
-        if (keyboardState.IsKeyDown(Keys.A)) direction.X -= 1;
-        if (keyboardState.IsKeyDown(Keys.D)) direction.X += 1;
-
-        return direction != Vector2.Zero ?
-            Vector2.Normalize(direction) : Vector2.Zero;
+        var mouseInput = _mouseEntity.Get<MouseInput>();
+        if (mouseInput.RightButton == true && mouseInput.PreviousRightButton == false)        
+        {
+            entity.Set(new MoveCommand
+            {
+                TargetPosition = mouseInput.WorldPosition,
+            }
+            );
+            Console.WriteLine($"Player command to move to {mouseInput.WorldPosition}");
+        }
     }
 }

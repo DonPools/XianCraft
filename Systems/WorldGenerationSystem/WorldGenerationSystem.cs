@@ -6,19 +6,23 @@ using XianCraft.Components;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using MonoGame.Extended.Tiled;
+using System.Linq;
 
 namespace XianCraft.Systems;
 
 public class WorldGenerationSystem : AEntitySetSystem<GameTime>
 {
     private readonly World _world;
+    private EntityManager _entityManager;
     private TiledMap _metaMap;
 
     private TerrainGenerator _terrainGenerator = new TerrainGenerator(1);
 
-    private readonly HashSet<Point> _loadedChunks = new();
-    private readonly Dictionary<Point, List<Entity>> _chunkEntities = new();
-    private EntityManager _entityManager;
+    private Dictionary<Point, Chunk> _loadedChunks = new();
+    private readonly Dictionary<Point, List<Entity>> _chunkEntities = new(); // 树木等
+
+    private readonly EntitySet _mapEntitySet;
+    private Entity _mapEntity => _mapEntitySet.GetEntities().ToArray().FirstOrDefault();
 
     public WorldGenerationSystem(World world, EntityManager entityManager, TiledMap metaMap) :
         base(world.GetEntities().With<Camera>().AsSet())
@@ -26,46 +30,28 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
         _world = world;
         _metaMap = metaMap;
         _entityManager = entityManager;
+        _mapEntitySet = world.GetEntities().With<TerrainMap>().AsSet();
     }
 
-    public List<Entity> BuildChunk(int x, int y)
+    public Chunk BuildChunk(int x, int y)
     {
-        var enityList = new List<Entity>();
-        var chunkPos = new Point(x, y);        
+        var chunkPos = new Point(x, y);
         var terrainData = new Terrain[Const.ChunkSize, Const.ChunkSize];
         for (int i = 0; i < Const.ChunkSize; i++)
         {
             for (int j = 0; j < Const.ChunkSize; j++)
             {
-                terrainData[i, j] = _terrainGenerator.GenerateChunkTerrain(chunkPos, Const.ChunkSize, i, j);                
+                terrainData[i, j] = _terrainGenerator.GenerateChunkTerrain(chunkPos, Const.ChunkSize, i, j);
             }
         }
 
-        var entity = _world.CreateEntity();        
-        entity.Set(new Chunk{
+        var chunk = new Chunk
+        {
             Position = chunkPos,
             TerrainData = terrainData
-        });
-        enityList.Add(entity);
+        };
 
-        for (int i = 0; i < Const.ChunkSize; i++)
-        {
-            for (int j = 0; j < Const.ChunkSize; j++)
-            {
-                var terrain = terrainData[i, j];
-                if (terrain.HasTree)
-                {
-                    var position = new Vector2(
-                        chunkPos.X * Const.ChunkSize + i + 0.5f,
-                        chunkPos.Y * Const.ChunkSize + j + 0.5f
-                    );
-                    var treeEntity = _entityManager.CreateTreeEntity(position);
-                    enityList.Add(treeEntity);
-                }
-            }
-        }
-
-        return enityList;
+        return chunk;
     }
 
     private static double CalculateChunkDistance(Point from, Point to)
@@ -86,32 +72,86 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
         var chunksToLoad = GetChunksInRadius(cameraChunk, Const.RenderDistance, true);
         foreach (var chunkPos in chunksToLoad)
         {
-            var entity = BuildChunk(chunkPos.X, chunkPos.Y);
-            _loadedChunks.Add(chunkPos);
-            _chunkEntities[chunkPos] = entity;
+            var chunk = BuildChunk(chunkPos.X, chunkPos.Y);
+            _loadedChunks[chunkPos] = chunk;
+            for (int i = 0; i < Const.ChunkSize; i++)
+            {
+                for (int j = 0; j < Const.ChunkSize; j++)
+                {
+                    var terrain = chunk.TerrainData[i, j];
+                    if (terrain.HasTree)
+                    {
+                        var position = new Vector2(
+                            chunkPos.X * Const.ChunkSize + i + 0.5f,
+                            chunkPos.Y * Const.ChunkSize + j + 0.5f
+                        );
+                        _entityManager.CreateTreeEntity(position);
+                    }
+                }
+            }
+
         }
 
         var chunksToUnload = new List<Point>();
-        foreach (var loadedChunk in _loadedChunks)
+        foreach (var loadedChunk in _loadedChunks.Values)
         {
-            double distance = CalculateChunkDistance(cameraChunk, loadedChunk);
+            double distance = CalculateChunkDistance(cameraChunk, loadedChunk.Position);
             if (distance > Const.RenderDistance)
-            {
-                chunksToUnload.Add(loadedChunk);
-            }
+                chunksToUnload.Add(loadedChunk.Position);
         }
-        
+
         foreach (var chunkPos in chunksToUnload)
         {
+            _loadedChunks.Remove(chunkPos);
             if (_chunkEntities.TryGetValue(chunkPos, out var entityList))
             {
                 foreach (var entity in entityList)
                     entity.Dispose();
 
-                _loadedChunks.Remove(chunkPos);
                 _chunkEntities.Remove(chunkPos);
-            }            
+            }
         }
+
+        if (chunksToLoad.Count == 0 && chunksToUnload.Count == 0)
+            return;
+
+        // 更新地图实体
+        var minChunkX = int.MaxValue;
+        var minChunkY = int.MaxValue;
+        var maxChunkX = int.MinValue;
+        var maxChunkY = int.MinValue;
+
+        foreach (var chunk in _loadedChunks.Values)
+        {
+            var chunkPos = chunk.Position;
+            minChunkX = Math.Min(minChunkX, chunkPos.X);
+            minChunkY = Math.Min(minChunkY, chunkPos.Y);
+            maxChunkX = Math.Max(maxChunkX, chunkPos.X);
+            maxChunkY = Math.Max(maxChunkY, chunkPos.Y);
+        }
+        var minX = minChunkX * Const.ChunkSize;
+        var minY = minChunkY * Const.ChunkSize;
+        var maxX = (maxChunkX + 1) * Const.ChunkSize - 1;
+        var maxY = (maxChunkY + 1) * Const.ChunkSize - 1;
+
+        Console.WriteLine($"更新地图范围: ({minX},{minY}) - ({maxX},{maxY})");
+        var terrainMap = new TerrainMap(minX, minY, maxX, maxY);
+        foreach (var chunk in _loadedChunks.Values)
+        {
+            var chunkPos = chunk.Position;
+            for (int i = 0; i < Const.ChunkSize; i++)
+            {
+                for (int j = 0; j < Const.ChunkSize; j++)
+                {
+                    var terrain = chunk.TerrainData[i, j];
+                    int x = i + chunkPos.X * Const.ChunkSize;
+                    int y = j + chunkPos.Y * Const.ChunkSize;
+                    terrainMap[x, y] = terrain;
+                }
+            }
+        }
+
+        _mapEntity.Set(terrainMap);
     }
 
     /// <summary>
@@ -128,7 +168,7 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
                 var chunkPos = new Point(x, y);
                 double distance = CalculateChunkDistance(centerChunk, chunkPos);
 
-                if (distance <= radius && (!excludeLoaded || !_loadedChunks.Contains(chunkPos)))
+                if (distance <= radius && (!excludeLoaded || !_loadedChunks.ContainsKey(chunkPos)))
                 {
                     chunks.Add(chunkPos);
                 }
@@ -143,5 +183,5 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
         var camera = entity.Get<Camera>();
         UpdateChunks(camera);
     }
-    
+
 }

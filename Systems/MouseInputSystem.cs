@@ -29,8 +29,8 @@ public class MouseInputSystem : AComponentSystem<GameTime, Camera>
     protected override void Update(GameTime gameTime, ref Camera camera)
     {
         ref var mouseInput = ref _mouseEntity.Get<MouseInput>();
-     
-        var mouseState = Mouse.GetState();                
+
+        var mouseState = Mouse.GetState();
         var offsetX = (mouseState.X - camera.ViewportWidth / 2f) / camera.Zoom + camera.Position.X;
         var offsetY = (mouseState.Y - camera.ViewportHeight / 2f) / camera.Zoom + camera.Position.Y;
 
@@ -38,7 +38,9 @@ public class MouseInputSystem : AComponentSystem<GameTime, Camera>
         mouseInput.WorldPosition = Helper.ScreenToTileCoords(
             offsetX, offsetY, _metaMap.TileWidth, _metaMap.TileHeight
         );
+        mouseInput.PreviousLeftButton = mouseInput.LeftButton;
+        mouseInput.PreviousRightButton = mouseInput.RightButton;        
         mouseInput.LeftButton = mouseState.LeftButton == ButtonState.Pressed;
-        mouseInput.RightButton = mouseState.RightButton == ButtonState.Pressed;
+        mouseInput.RightButton = mouseState.RightButton == ButtonState.Pressed;        
     }
 }

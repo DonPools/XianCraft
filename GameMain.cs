@@ -64,6 +64,7 @@ public class GameMain : Game
             new MouseInputSystem(_world, _metaMap),
             new WorldGenerationSystem(_world, _entityManager, _metaMap),
             new PlayerControlSystem(_world),
+            new PathFindSystem(_world),
             new MovementSystem(_world),
             new CameraSystem(_world, GraphicsDevice, _metaMap),
             new AnimationSystem(_world),

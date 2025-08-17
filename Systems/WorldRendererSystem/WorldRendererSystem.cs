@@ -11,11 +11,6 @@ using XianCraft.Renderers.Tiled;
 using MonoGame.Extended;
 using MonoGame.Extended.Shapes;
 
-using MonoGame.Extended.Collisions;
-
-using OcclusionComponent = XianCraft.Components.CollisionComponent;
-using SizeF = MonoGame.Extended.SizeF;
-
 namespace XianCraft.Systems;
 
 public class MetaTile
@@ -33,7 +28,7 @@ public class MetaTile
     public MetaTileModel Default { get; set; }
     public Dictionary<string, MetaTileModel> Models { get; set; } = new();
 
-    public MetaTileModel GetMetaTileModel(string bitMask)
+    public MetaTileModel GetMetaTileModel(string bitMask="")
     {
         if (string.IsNullOrEmpty(bitMask))
             return Default;
@@ -59,19 +54,17 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _playerEntity => _playerSet.GetEntities().ToArray().FirstOrDefault();
 
-    private HashSet<Point> _loadedChunks = new HashSet<Point>();
+    private string _loadedMapHash = "";
 
     private TiledMap _metaMap;
     private TiledMapRenderer _mapRenderer;
     private Dictionary<string, MetaTile> _metaTiles = new Dictionary<string, MetaTile>();
-    private int _mapOffsetX = 0;
-    private int _mapOffsetY = 0;
 
     private TiledMapEffect _effect;
     private EntitySet _animateRendererSet;
 
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
-        base(world.GetEntities().With<Chunk>().AsSet())
+        base(world.GetEntities().With<TerrainMap>().AsSet())
     {
         _world = world;
 
@@ -159,13 +152,12 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         }
     }
 
-    private string GetBitMask(Dictionary<Point, Chunk> chunkDict, Chunk chunk, int x, int y)
+    private string GetBitMask(TerrainMap terrainMap, int x, int y)
     {
         // 四个方向：左、下、右、上
         int[,] directions = new int[,] { { -1, 0 }, { 0, 1 }, { 1, 0 }, { 0, -1 } };
-        TerrainType selfType = chunk.TerrainData[x, y].Type;
-        int size = Const.ChunkSize;
         string bitMask = "";
+        var selfType = terrainMap[x, y].Type;
 
         for (int i = 0; i < 4; i++)
         {
@@ -173,30 +165,11 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             int ny = y + directions[i, 1];
             bool same = false;
 
-            if (nx >= 0 && nx < size && ny >= 0 && ny < size)
+            // 判断是否在地图范围内
+            if (nx >= terrainMap.MinX && nx <= terrainMap.MaxX &&
+                ny >= terrainMap.MinY && ny <= terrainMap.MaxY)
             {
-                // 当前区块内
-                same = chunk.TerrainData[nx, ny].Type == selfType;
-            }
-            else
-            {
-                // 跨区块，查找相邻区块
-                var chunkPos = chunk.Position;
-                int neighborChunkX = (int)chunkPos.X;
-                int neighborChunkY = (int)chunkPos.Y;
-                int localX = nx;
-                int localY = ny;
-
-                if (nx < 0) { neighborChunkX -= 1; localX = size - 1; }
-                if (nx >= size) { neighborChunkX += 1; localX = 0; }
-                if (ny < 0) { neighborChunkY -= 1; localY = size - 1; }
-                if (ny >= size) { neighborChunkY += 1; localY = 0; }
-
-                var neighborKey = new Point(neighborChunkX, neighborChunkY);
-                if (chunkDict.TryGetValue(neighborKey, out var neighbor))
-                {
-                    same = neighbor.TerrainData[localX, localY].Type == selfType;
-                }
+                same = terrainMap[nx, ny].Type == selfType;
             }
 
             bitMask += same ? "1" : "0";
@@ -205,32 +178,13 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         return bitMask;
     }
 
-    public void BuildTiledMap(ReadOnlySpan<Entity> chunkEntities)
+    public void BuildTiledMap(TerrainMap terrainMap)
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        var minX = int.MaxValue;
-        var minY = int.MaxValue;
-        var maxX = int.MinValue;
-        var maxY = int.MinValue;
-        foreach (var entity in chunkEntities)
-        {
-            var chunk = entity.Get<Chunk>();
-            var chunkPos = chunk.Position;
-            minX = Math.Min(minX, (int)chunkPos.X);
-            minY = Math.Min(minY, (int)chunkPos.Y);
-            maxX = Math.Max(maxX, (int)chunkPos.X);
-            maxY = Math.Max(maxY, (int)chunkPos.Y);
-        }
-
-        _mapOffsetX = -minX * Const.ChunkSize;
-        _mapOffsetY = -minY * Const.ChunkSize;
-        var width = (maxX - minX + 1) * Const.ChunkSize;
-        var height = (maxY - minY + 1) * Const.ChunkSize;
-
         var tiledMap = new TiledMap(
             _metaMap.Name, _metaMap.Type,
-            width, height,
+            terrainMap.Width, terrainMap.Height,
             _metaMap.TileWidth, _metaMap.TileHeight,
             _metaMap.RenderOrder, _metaMap.Orientation, _metaMap.BackgroundColor
         );
@@ -238,51 +192,44 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         var mapLayers = new Dictionary<string, TiledMapTileLayer>();
         foreach (var tileLayer in _metaMap.TileLayers)
         {
-            var newLayer = new TiledMapTileLayer(tileLayer.Name, tileLayer.Type, width, height, tiledMap.TileWidth, tiledMap.TileHeight);
+            var newLayer = new TiledMapTileLayer(
+                tileLayer.Name, tileLayer.Type, terrainMap.Width, terrainMap.Height,
+                tiledMap.TileWidth, tiledMap.TileHeight
+            );
             tiledMap.AddLayer(newLayer);
             mapLayers[tileLayer.Name] = newLayer;
         }
 
-        var chunkDict = new Dictionary<Point, Chunk>();
-        foreach (var entity in chunkEntities)
+        var minX = terrainMap.MinX;
+        var minY = terrainMap.MinY;
+        for (int x = terrainMap.MinX; x <= terrainMap.MaxX; x++)
         {
-            var chunk = entity.Get<Chunk>();
-            var chunkPos = chunk.Position;
-            chunkDict[new Point((int)chunkPos.X, (int)chunkPos.Y)] = chunk;
-        }
-
-        foreach (var entity in chunkEntities)
-        {
-            var chunk = entity.Get<Chunk>();
-            var chunkPos = chunk.Position;
-            for (int x = 0; x < Const.ChunkSize; x++)
+            for (int y = terrainMap.MinY; y <= terrainMap.MaxY; y++)
             {
-                for (int y = 0; y < Const.ChunkSize; y++)
+                var terrainType = terrainMap[x, y].Type;
+                if (_metaTiles.TryGetValue(terrainType.ToString(), out var metaTile))
                 {
-                    var terrainType = chunk.TerrainData[x, y].Type;
-                    if (_metaTiles.TryGetValue(terrainType.ToString(), out var metaTile))
+                    var tileX = x - minX;
+                    var tileY = y - minY;
+                    if (metaTile.IsAutoTile)
                     {
-                        var tileX = x + (int)chunkPos.X * Const.ChunkSize + _mapOffsetX;
-                        var tileY = y + (int)chunkPos.Y * Const.ChunkSize + _mapOffsetY;
-                        if (metaTile.IsAutoTile)
+                        // 自动瓦片处理
+                        var bitMask = GetBitMask(terrainMap, x, y);
+                        //Console.WriteLine($"Chunk: {chunkPos}, Tile: ({x},{y}), BitMask: {bitMask}");
+                        var model = metaTile.GetMetaTileModel(bitMask);
+                        if (model != null)
                         {
-                            // 自动瓦片处理
-                            var bitMask = GetBitMask(chunkDict, chunk, x, y);
-                            //Console.WriteLine($"Chunk: {chunkPos}, Tile: ({x},{y}), BitMask: {bitMask}");
-                            var model = metaTile.GetMetaTileModel(bitMask);
-                            if (model != null)
-                            {
-                                mapLayers[model.Layer]?.SetTile((ushort)tileX, (ushort)tileY, model.GlobalIdentifier);
-                            }
-                        }
-                        else
-                        {
-                            // 普通瓦片处理
-                            var model = metaTile.GetMetaTileModel("");
-                            mapLayers[model.Layer]?.SetTile((ushort)tileX, (ushort)tileY, metaTile.Default.GlobalIdentifier);
+                            mapLayers[model.Layer]?.SetTile((ushort)tileX, (ushort)tileY, model.GlobalIdentifier);
                         }
                     }
+                    else
+                    {
+                        // 普通瓦片处理
+                        var model = metaTile.GetMetaTileModel();
+                        mapLayers[model.Layer]?.SetTile((ushort)tileX, (ushort)tileY, metaTile.Default.GlobalIdentifier);
+                    }
                 }
+
             }
         }
 
@@ -296,33 +243,23 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         _mapRenderer.LoadMap(tiledMap);
 
         stopwatch.Stop();
-        Console.WriteLine($"BuildTiledMap 耗时: {stopwatch.ElapsedMilliseconds} ms {tiledMap.Width}x{tiledMap.Height} tiles, {chunkEntities.Length} chunks");
+        Console.WriteLine($"BuildTiledMap 耗时: {stopwatch.ElapsedMilliseconds} ms {tiledMap.Width}x{tiledMap.Height} tiles chunks");
     }
 
-    public void SyncChunks(ReadOnlySpan<Entity> chunkEntities)
+    protected override void Update(SpriteBatch spriteBatch, in Entity entity)
     {
-        var currentChunks = new HashSet<Point>();
-        foreach (var entity in chunkEntities)
-        {
-            var chunk = entity.Get<Chunk>();
-            var chunkPos = new Point((int)chunk.Position.X, (int)chunk.Position.Y);
-            currentChunks.Add(chunkPos);
-        }
-
-        if (currentChunks.SetEquals(_loadedChunks))
-            return; // 没有变化
-
-        _loadedChunks = currentChunks;
-        BuildTiledMap(chunkEntities);
-    }
-
-    protected override void Update(SpriteBatch spriteBatch, ReadOnlySpan<Entity> chunkEntities)
-    {
-        SyncChunks(chunkEntities);
+        if (!entity.Has<TerrainMap>())
+            return;
 
         var camera = _cameraEntity.Get<Camera>();
+        ref var terrainMap = ref entity.Get<TerrainMap>();
+        if (terrainMap.GetHash() != _loadedMapHash)
+        {
+            _loadedMapHash = terrainMap.GetHash();
+            BuildTiledMap(terrainMap);
+        }
 
-        DrawMap(camera);
+        DrawMap(terrainMap, camera);
 
         spriteBatch.Begin(
             SpriteSortMode.FrontToBack,
@@ -338,10 +275,10 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         spriteBatch.End();
     }
 
-    private void DrawMap(Camera camera)
+    private void DrawMap(TerrainMap terrainMap, Camera camera)
     {
         var mapOffset = Helper.TileToScreenCoords(
-            _mapOffsetX, _mapOffsetY,
+            -terrainMap.MinX, -terrainMap.MinY,
             _metaMap.TileWidth, _metaMap.TileHeight
         );
         var viewportOffset = new Vector2(

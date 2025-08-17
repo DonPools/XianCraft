@@ -14,7 +14,7 @@ public class InfoCollectSystem : AEntitySetSystem<GameTime>
 
     private EntitySet _cameraSet;
     private EntitySet _mouseInputSet;
-    private EntitySet _chunkSet;
+    private EntitySet _terainMapSet;
     private EntitySet _playerSet;
     private EntitySet _entitySet;
 
@@ -23,6 +23,7 @@ public class InfoCollectSystem : AEntitySetSystem<GameTime>
     private double _elapsedTime = 0;
     private int _fps = 0;
 
+    private Entity _terrainMapEntity => _terainMapSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _playerEntity => _playerSet.GetEntities().ToArray().FirstOrDefault();
@@ -35,7 +36,7 @@ public class InfoCollectSystem : AEntitySetSystem<GameTime>
         _cameraSet = _world.GetEntities().With<Camera>().AsSet();
         _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
         _playerSet = _world.GetEntities().With<Player>().With<Position>().AsSet();
-        _chunkSet = _world.GetEntities().With<Chunk>().AsSet();
+        _terainMapSet = _world.GetEntities().With<TerrainMap>().AsSet();
         _entitySet = _world.GetEntities().AsSet();
     }
 
@@ -88,18 +89,17 @@ public class InfoCollectSystem : AEntitySetSystem<GameTime>
         var y = ((worldY % Const.ChunkSize) + Const.ChunkSize) % Const.ChunkSize;
 
         systemInfo += $"鼠标所在区块: {chunkX}, {chunkY} ({x}, {y})\n";
-        var chunkEntities = _chunkSet.GetEntities();        
-
-        foreach (var chunkEntity in chunkEntities)
+        var terrainMap = _terrainMapEntity.Get<TerrainMap>();
+        if (worldX < terrainMap.MinX || worldX > terrainMap.MaxX ||
+            worldY < terrainMap.MinY || worldY > terrainMap.MaxY)
         {
-            var chunk = chunkEntity.Get<Chunk>();
-            //Console.WriteLine($"Chunk: {chunk.Position.X}, {chunk.Position.Y} ({x}, {y})");
-            if (chunk.Position.X == chunkX && chunk.Position.Y == chunkY)
-            {
-                systemInfo += $"地形类型: {chunk.TerrainData[x, y].Type}\n";
-                break;
-            }
+            systemInfo += "鼠标位置不在地图范围内\n";
         }
+        else
+        {
+            systemInfo += $"地形类型: {terrainMap[worldX, worldY].Type}\n";
+        }
+
 
         systemInfo += $"\n[玩家信息]\n";
         systemInfo += $"玩家位置: {playerPos.Value.X:F1}, {playerPos.Value.Y:F1}\n";

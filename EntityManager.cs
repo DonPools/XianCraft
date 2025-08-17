@@ -15,11 +15,13 @@ public class EntityManager
         _world = world;
         _assetManager = assetManager;
     }
-
+    
     public Entity CreateGlobalStateEntity()
     {
         var entity = _world.CreateEntity();
         entity.Set(new DebugInfo());
+        entity.Set(new GlobalState());
+        entity.Set(new TerrainMap(0, 0, 0, 0));
         return entity;
     }
 
@@ -33,12 +35,12 @@ public class EntityManager
     public Entity CreateMouseInputEntity()
     {
         var entity = _world.CreateEntity();
-        entity.Set(new MouseInput(
-            Vector2.Zero,
-            Vector2.Zero,
-            false,
-            false
-        ));
+        entity.Set(new MouseInput{
+            Position = Vector2.Zero,
+            WorldPosition = Vector2.Zero,
+            LeftButton = false,
+            RightButton = false
+        });
         return entity;
     }
 
@@ -55,7 +57,6 @@ public class EntityManager
 
         var entity = _world.CreateEntity();
         entity.Set(new Position { Value = position });
-        entity.Set(new OcclusionComponent());
         entity.Set(animateState);
         return entity;
     }
@@ -63,17 +64,25 @@ public class EntityManager
     public Entity CreatePlayerEntity()
     {
         var entityAsset = _assetManager.GetEntityAsset("wolf");
-
-        var entity = _world.CreateEntity();
-        entity.Set(new Player());
-        entity.Set(new Position { Value = new Vector2(8.5f, 5.5f) });
-        entity.Set(new Movement());
-        entity.Set(new AnimateState
+        var animateState = new AnimateState
         {
             EntityName = entityAsset.Name,
             Origin = entityAsset.Origin,
             Animations = entityAsset.Animations,
+        };
+        animateState.SetAnimation("Idle_Down");
+
+        var entity = _world.CreateEntity();
+        entity.Set(new Player());
+        entity.Set(new Position { Value = new Vector2(8.5f, 8.5f) });
+        entity.Set(new Movement{
+            MoveSpeed = 3.0f,
         });
+        entity.Set(new Facing{
+            Value = Direction.Down,
+            Angle = MathHelper.PiOver2, // 90度，向下
+        });
+        entity.Set(animateState);
         return entity;
     }
 
