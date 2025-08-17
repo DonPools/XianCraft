@@ -72,6 +72,7 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
         var chunksToLoad = GetChunksInRadius(cameraChunk, Const.RenderDistance, true);
         foreach (var chunkPos in chunksToLoad)
         {
+            List<Entity> entityList = new();
             var chunk = BuildChunk(chunkPos.X, chunkPos.Y);
             _loadedChunks[chunkPos] = chunk;
             for (int i = 0; i < Const.ChunkSize; i++)
@@ -85,11 +86,12 @@ public class WorldGenerationSystem : AEntitySetSystem<GameTime>
                             chunkPos.X * Const.ChunkSize + i + 0.5f,
                             chunkPos.Y * Const.ChunkSize + j + 0.5f
                         );
-                        _entityManager.CreateTreeEntity(position);
+                        var entity = _entityManager.CreateTreeEntity(position);
+                        entityList.Add(entity);
                     }
                 }
             }
-
+            _chunkEntities[chunkPos] = entityList;
         }
 
         var chunksToUnload = new List<Point>();
