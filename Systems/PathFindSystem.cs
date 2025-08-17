@@ -31,13 +31,18 @@ public class PathFindSystem : AEntitySetSystem<GameTime>
         var moveCommand = entity.Get<MoveCommand>();
         var terrainMap = _terrainMapEntity.Get<TerrainMap>();
 
-        var start = new Point((int)position.Value.X, (int)position.Value.Y);
-        var end = new Point((int)moveCommand.TargetPosition.X, (int)moveCommand.TargetPosition.Y);
+        var start = WorldToGrid(position.Value);
+        var end = WorldToGrid(moveCommand.TargetPosition);
         var path = FindPath(terrainMap, start, end);
-        Console.WriteLine($"Path from {start} to {end}: {string.Join(" -> ", path)}");
+
+        if (path.Count > 1 && path[0] == start)
+        {
+            path.RemoveAt(0);
+        }
+        var vectorPath = path.Select(p => new Vector2(p.X + 0.5f, p.Y + 0.5f)).ToList();
         entity.Set(new PathData
         {
-            Path = path,
+            Path = vectorPath,
         });
 
         entity.Remove<MoveCommand>();
@@ -87,13 +92,17 @@ public class PathFindSystem : AEntitySetSystem<GameTime>
 
     private IEnumerable<Point> GetNeighbors(TerrainMap terrainMap, Point point)
     {
-        // 4方向移动
+        // 8方向移动
         var directions = new[]
         {
             new Point(0, 1),
             new Point(1, 0),
             new Point(0, -1),
-            new Point(-1, 0)
+            new Point(-1, 0),
+            new Point(1, 1),
+            new Point(1, -1),
+            new Point(-1, 1),
+            new Point(-1, -1)
         };
 
         foreach (var dir in directions)
@@ -114,4 +123,13 @@ public class PathFindSystem : AEntitySetSystem<GameTime>
         }
         return totalPath;
     }
+
+        // 世界坐标转换为网格坐标（使用四舍五入）
+    private Point WorldToGrid(Vector2 worldPos)
+    {
+        int gridX = (int)Math.Floor(worldPos.X);
+        int gridY = (int)Math.Floor(worldPos.Y);
+        return new Point(gridX, gridY);
+    }
+
 }

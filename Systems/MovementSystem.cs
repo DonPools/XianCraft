@@ -21,7 +21,6 @@ public class MovementSystem : AEntitySetSystem<GameTime>
         ref var position = ref entity.Get<Position>();
         ref var movement = ref entity.Get<Movement>();
         ref var pathData = ref entity.Get<PathData>();
-        Console.WriteLine($"Entity {entity.GetHashCode()} at position {position.Value} with movement {movement} with path length {pathData.Path.Count}");
 
         if (pathData.Path.Count == 0)
             return;
@@ -45,7 +44,6 @@ public class MovementSystem : AEntitySetSystem<GameTime>
 
             targetNode = pathData.Path[0];
             direction = new Vector2(targetNode.X - position.Value.X, targetNode.Y - position.Value.Y);
-            distance = direction.Length();
         }
 
         // 归一化方向并应用速度

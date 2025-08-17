@@ -35,7 +35,7 @@ public class CameraSystem : AComponentSystem<GameTime, Camera>
         if (entity.IsAlive)
         {
             ref var position = ref entity.Get<Position>();
-            camera.Position = Helper.TileToScreenCoords(
+            camera.Position = Helper.WorldToAbsScreenCoords(
                 position.Value.X, position.Value.Y,
                 _metaMap.TileWidth, _metaMap.TileHeight
             );

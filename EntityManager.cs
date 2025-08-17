@@ -76,7 +76,7 @@ public class EntityManager
         entity.Set(new Player());
         entity.Set(new Position { Value = new Vector2(8.5f, 8.5f) });
         entity.Set(new Movement{
-            MoveSpeed = 3.0f,
+            MoveSpeed = 5.0f,
         });
         entity.Set(new Facing{
             Value = Direction.Down,

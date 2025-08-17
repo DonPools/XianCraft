@@ -149,7 +149,7 @@ struct MoveCommand
 // 寻路数据
 struct PathData
 {
-    public List<Point> Path;
+    public List<Vector2> Path;
 }
 
 // 移动属性

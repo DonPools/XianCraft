@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using XianCraft.Renderers.Tiled;
 using MonoGame.Extended;
 using MonoGame.Extended.Shapes;
+using AsepriteDotNet;
 
 namespace XianCraft.Systems;
 
@@ -49,6 +50,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private EntitySet _cameraSet;
     private EntitySet _mouseInputSet;
     private EntitySet _playerSet;
+    private EntitySet _pathDataSet;
 
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
@@ -71,6 +73,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         _cameraSet = _world.GetEntities().With<Camera>().AsSet();
         _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
         _animateRendererSet = _world.GetEntities().With<Position>().With<AnimateState>().AsSet();
+        _pathDataSet = _world.GetEntities().With<PathData>().AsSet();
 
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
@@ -270,14 +273,47 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         );
 
         DrawEntities(spriteBatch, camera);
+        DrawPathData(spriteBatch, camera);
         DrawMouse(spriteBatch, camera);
 
         spriteBatch.End();
     }
 
+    private void DrawPathData(SpriteBatch spriteBatch, Camera camera)
+    {
+        foreach (var entity in _pathDataSet.GetEntities())
+        {
+            var pathData = entity.Get<PathData>();
+            if (pathData.Path.Count < 2)
+                continue;
+
+            // 收集所有点的屏幕坐标
+            var screenPoints = new List<Vector2>();
+            foreach (var point in pathData.Path)
+            {
+                var screenPos = Helper.WorldToScreenCoords(
+                    new Vector2(point.X, point.Y),
+                    _metaMap.TileWidth, _metaMap.TileHeight,
+                    camera
+                );
+                screenPoints.Add(screenPos);
+            }
+
+            // 依次画线
+            for (int i = 0; i < screenPoints.Count - 1; i++)
+            {
+                spriteBatch.DrawLine(screenPoints[i], screenPoints[i + 1], Color.Blue, 2f);
+            }
+
+            // 画终点
+            var lastPoint = screenPoints.Last();
+            spriteBatch.DrawCircle(lastPoint, 5f, 16, Color.Blue, 2f);
+        }
+    }
+
     private void DrawMap(TerrainMap terrainMap, Camera camera)
     {
-        var mapOffset = Helper.TileToScreenCoords(
+        var mapOffset = Helper.WorldToAbsScreenCoords(
             -terrainMap.MinX, -terrainMap.MinY,
             _metaMap.TileWidth, _metaMap.TileHeight
         );
@@ -367,7 +403,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         var sourceRect = animateState.SourceRectangle;
         var origin = animateState.Origin;
 
-        var worldScreenPos = Helper.TileToScreenCoords(
+        var worldScreenPos = Helper.WorldToAbsScreenCoords(
             position.Value.X, position.Value.Y,
             _metaMap.TileWidth, _metaMap.TileHeight
         );
@@ -410,7 +446,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             var scaledWidth = (int)(sourceRect.Width * camera.Zoom);
             var scaledHeight = (int)(sourceRect.Height * camera.Zoom);
 
-            var worldScreenPos = Helper.TileToScreenCoords(
+            var worldScreenPos = Helper.WorldToAbsScreenCoords(
                 position.Value.X, position.Value.Y,
                 _metaMap.TileWidth, _metaMap.TileHeight
             );
@@ -460,18 +496,12 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
     private Polygon BuildTileOutline(float worldX, float worldY, Camera camera)
     {
-        var worldScreenPos = Helper.TileToScreenCoords(
-            worldX, worldY,
-            _metaMap.TileWidth, _metaMap.TileHeight
-        );
-        var relPos = (worldScreenPos - camera.Position) * camera.Zoom;
-
         float halfWidth = _metaMap.TileWidth * camera.Zoom / 2f;
         float halfHeight = _metaMap.TileHeight * camera.Zoom / 2f;
 
-        var center = new Vector2(
-           camera.ViewportWidth / 2f + relPos.X,
-           camera.ViewportHeight / 2f + relPos.Y
+        var center = Helper.WorldToScreenCoords(
+            new Vector2(worldX, worldY), _metaMap.TileWidth, _metaMap.TileHeight,
+            camera
         );
         Vector2[] diamond =
         [
