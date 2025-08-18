@@ -302,7 +302,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         spriteBatch.End();
 
-        DrawLighting(spriteBatch, globalState.Clock, camera);
+        DrawLighting(spriteBatch, globalState.GameTime, globalState.Clock, camera);
 
         _graphicsDevice.SetRenderTarget(null);
         _graphicsDevice.Clear(Color.Black);
@@ -396,7 +396,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         return tex;
     }
 
-    private void DrawLighting(SpriteBatch spriteBatch, GameClock clock, Camera camera)
+    private void DrawLighting(SpriteBatch spriteBatch, GameTime gameTime, GameClock clock, Camera camera)
     {
         _graphicsDevice.SetRenderTarget(_lightMaskRenderTarget);
         _graphicsDevice.Clear(Color.Black);
@@ -445,11 +445,25 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                 scaledWidth, scaledHeight
             );
 
-            // 支持彩色光：若 LightSource 有 Color 则使用；否则默认白
-            // 火炬的颜色
-            var color = new Color(1f, 0.74f, 0.32f);
-            // 乘以强度
-            spriteBatch.Draw(_lightTexture, lightRect, color * light.Intensity);
+             // 若 LightSource 自带颜色，用它；否则默认火炬暖色
+            var baseColor = light.Color == default ? new Color(1f, 0.74f, 0.32f) : light.Color;
+
+            if (light.IsFlickering)
+            {
+                // 可选轻微呼吸闪烁（如不需要可删）
+                float t = (float)gameTime.TotalGameTime.TotalSeconds;
+                float flicker = 0.92f + 0.08f * MathF.Sin(t * 15f + entity.GetHashCode() * 0.13f);
+                flicker += 0.04f * MathF.Sin(t * 33f + entity.GetHashCode() * 0.077f);
+                flicker = MathHelper.Clamp(flicker, 0.85f, 1.08f);
+                baseColor *= flicker;
+            }
+            else
+            { 
+                // 不闪烁时，直接使用光源颜色
+                baseColor = light.Color;
+            }
+
+            spriteBatch.Draw(_lightTexture, lightRect, baseColor * light.Intensity);
         }
 
         spriteBatch.End();

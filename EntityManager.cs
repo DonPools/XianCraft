@@ -89,9 +89,12 @@ public class EntityManager
             Value = Direction.Down,
             Angle = MathHelper.PiOver2, // 90度，向下
         });
-        entity.Set(new LightSource{
+        entity.Set(new LightSource
+        {
+            Color = new Color(1f, 0.74f, 0.32f), // 火炬颜色
             Intensity = 0.9f,
             Range = 8.0f,
+            IsFlickering = true // 可选：是否闪烁
         });
         entity.Set(animateState);
         return entity;

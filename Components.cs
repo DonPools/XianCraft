@@ -8,6 +8,7 @@ namespace XianCraft.Components;
 public class GlobalState
 {
     public GameClock Clock;
+    public GameTime GameTime;
 }
 
 /// <summary>
@@ -196,6 +197,8 @@ public class DebugInfo
 
 public class LightSource
 {
+    public Color Color; // 光源颜色
     public float Intensity; // 光照强度 (0.0 - 1.0)
-    public float Range;    // 光照半径   
+    public float Range;    // 光照半径
+    public bool IsFlickering; // 是否闪烁
 }
