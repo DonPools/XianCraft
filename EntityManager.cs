@@ -1,7 +1,7 @@
 using DefaultEcs;
 using XianCraft.Components;
 using Microsoft.Xna.Framework;
-using MonoGame.Extended;
+using XianCraft.Utils;
 
 namespace XianCraft;
 
@@ -17,10 +17,17 @@ public class EntityManager
     }
     
     public Entity CreateGlobalStateEntity()
-    {
+    {        
         var entity = _world.CreateEntity();
+        var gameClock = new GameClock();
+        gameClock.SetDayAndHour(1, 6); // 初始化为第1天，6点钟
+        gameClock.TimeScale = 3600;
+        
         entity.Set(new DebugInfo());
-        entity.Set(new GlobalState());
+        entity.Set(new GlobalState
+        { 
+            Clock = gameClock
+        });
         entity.Set(new TerrainMap(0, 0, 0, 0));
         return entity;
     }
@@ -83,9 +90,8 @@ public class EntityManager
             Angle = MathHelper.PiOver2, // 90度，向下
         });
         entity.Set(new LightSource{
-            LightColor = Color.Red,
             Intensity = 0.9f,
-            Range = 10.0f,
+            Range = 8.0f,
         });
         entity.Set(animateState);
         return entity;

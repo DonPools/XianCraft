@@ -48,7 +48,7 @@ public class GameMain : Game
     {
         _spriteFont = Content.Load<SpriteFont>("simsun");
         _metaMap = Content.Load<TiledMap>("Tilemap/meta");
-        var shaderExtention = UtilsHelper.GetShaderExtension();
+        var shaderExtention = Helper.GetShaderExtension();
         var bytecode = File.ReadAllBytes(Path.Combine(Content.RootDirectory, "Effects", $"PixelPerfectEffect.{shaderExtention}.mgfxo"));
         _effect = new Effect(GraphicsDevice, bytecode);
 
@@ -60,7 +60,8 @@ public class GameMain : Game
 
         _spriteBatch = new SpriteBatch(GraphicsDevice);        
 
-        _updateSystems = new SequentialSystem<GameTime>(            
+        _updateSystems = new SequentialSystem<GameTime>(
+            new WorldTimeSystem(_world),
             new MouseInputSystem(_world, _metaMap),
             new WorldGenerationSystem(_world, _entityManager, _metaMap),
             new PlayerControlSystem(_world),

@@ -1,10 +1,14 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using MonoGame.Aseprite;
+using XianCraft.Utils;
 
 namespace XianCraft.Components;
 
-public class GlobalState { }
+public class GlobalState
+{
+    public GameClock Clock;
+}
 
 /// <summary>
 /// 地形方块类型枚举 - 简化版，只有陆地和水
@@ -77,12 +81,7 @@ public class TerrainMap
     }
 }
 
-// 区块组件 - 表示一个16x16的地形区块
-public struct Chunk
-{
-    public Point Position;
-    public Terrain[,] TerrainData;
-}
+
 
 // 鼠标输入组件
 public struct MouseInput
@@ -165,7 +164,6 @@ struct Movement
     }
 }
 
-
 // 方向状态 (用于动画控制)
 public enum Direction : byte
 {
@@ -198,11 +196,6 @@ public class DebugInfo
 
 public class LightSource
 {
-    public Color LightColor;
     public float Intensity; // 光照强度 (0.0 - 1.0)
-    public float Range;    // 光照半径
-
-    // 可选：添加渐变效果
-    public bool AnimateColor = false;
-    public Color ColorVariation = new Color(1f, 0.8f, 0.5f); // 火把特有的暖色变化
+    public float Range;    // 光照半径   
 }

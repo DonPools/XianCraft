@@ -7,8 +7,16 @@ using Microsoft.Xna.Framework;
 using System.Collections.Generic;
 using MonoGame.Extended.Tiled;
 using System.Linq;
+using XianCraft.Utils;
 
 namespace XianCraft.Systems;
+
+// 区块组件 - 表示一个16x16的地形区块
+public struct Chunk
+{
+    public Point Position;
+    public Terrain[,] TerrainData;
+}
 
 public class WorldGenerationSystem : AEntitySetSystem<GameTime>
 {

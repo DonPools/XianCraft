@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using XianCraft.Renderers.Tiled;
 using MonoGame.Extended;
 using MonoGame.Extended.Shapes;
-using AsepriteDotNet;
+using XianCraft.Utils;
 
 namespace XianCraft.Systems;
 
@@ -52,6 +52,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private EntitySet _playerSet;
     private EntitySet _pathDataSet;
     private EntitySet _lightSourceSet;
+    private EntitySet _animateRendererSet;
 
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
@@ -70,11 +71,10 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private Dictionary<string, MetaTile> _metaTiles = new Dictionary<string, MetaTile>();
 
     private TiledMapEffect _effect;
-    private EntitySet _animateRendererSet;
 
 
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
-        base(world.GetEntities().With<TerrainMap>().AsSet())
+        base(world.GetEntities().With<GlobalState>().With<TerrainMap>().AsSet())
     {
         _world = world;
 
@@ -275,11 +275,9 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
     protected override void Update(SpriteBatch spriteBatch, in Entity entity)
     {
-        if (!entity.Has<TerrainMap>())
-            return;
-
         var camera = _cameraEntity.Get<Camera>();
         ref var terrainMap = ref entity.Get<TerrainMap>();
+        var globalState = entity.Get<GlobalState>();
         if (terrainMap.GetHash() != _loadedMapHash)
         {
             _loadedMapHash = terrainMap.GetHash();
@@ -304,18 +302,25 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         spriteBatch.End();
 
-        DrawLighting(spriteBatch, camera);
+        DrawLighting(spriteBatch, globalState.Clock, camera);
 
         _graphicsDevice.SetRenderTarget(null);
         _graphicsDevice.Clear(Color.Black);
-        spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
 
+        // 1) 先画场景
+        spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
         spriteBatch.Draw(_sceneRenderTarget, Vector2.Zero, Color.White);
-        spriteBatch.Draw(_lightMaskRenderTarget, Vector2.Zero, Color.White);
-
         spriteBatch.End();
 
-        //DrawMouse(spriteBatch, camera);
+        // 2) 用乘法把光照贴图叠到场景
+        spriteBatch.Begin(SpriteSortMode.Immediate, MultiplyBlendState);
+        spriteBatch.Draw(_lightMaskRenderTarget, Vector2.Zero, Color.White);
+        spriteBatch.End();
+
+        // 3) 再画鼠标/界面等（正常 Alpha）
+        spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+        DrawMouse(spriteBatch, camera);
+        spriteBatch.End();
     }
 
     private Texture2D CreateLightTexture(int size)
@@ -391,30 +396,34 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         return tex;
     }
 
-    private void DrawLighting(SpriteBatch spriteBatch, Camera camera)
+    private void DrawLighting(SpriteBatch spriteBatch, GameClock clock, Camera camera)
     {
         _graphicsDevice.SetRenderTarget(_lightMaskRenderTarget);
-        _graphicsDevice.Clear(Color.Transparent);
+        _graphicsDevice.Clear(Color.Black);
 
-        // 计算当前时间的光照参数
-        var timeOfDay = 0.95f;
-        float daylightIntensity = MathF.Sin(timeOfDay * MathHelper.Pi); // 0.0(午夜) -> 1.0(正午)
-        Color ambientColor = new Color(0, 0, 0, 1 - daylightIntensity * 0.8f); // 黑夜时黑色更浓
+        var lightFactor = LightingUtil.GetLightFactor(clock.Now);
 
-        spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
-        // 绘制全屏黑色遮罩（透明度随时间变化）
-        spriteBatch.Draw(_pixel, new Rectangle(0, 0, _lightMaskRenderTarget.Width, _lightMaskRenderTarget.Height), ambientColor);
+        // 为了夜间不是完全黑，设一个最小环境光（同时不影响点光显示）
+        const float ambientFloor = 0.3f;              // 可调：0=纯黑背景，0.03~0.07 较自然
+        float ambientIntensity = MathF.Max(lightFactor, ambientFloor);
 
-        spriteBatch.End();
-        spriteBatch.Begin(SpriteSortMode.Immediate,
-            new BlendState()
-            {
-                ColorDestinationBlend = Blend.One,
-                ColorSourceBlend = Blend.One,
-                AlphaDestinationBlend = Blend.InverseSourceAlpha,
-                AlphaSourceBlend = Blend.Zero
-            }
+        var tint = ComputeAmbientTint(clock.Now.TimeOfDayHours);
+        var ambientColor = new Color(
+            tint.R / 255f * ambientIntensity,
+            tint.G / 255f * ambientIntensity,
+            tint.B / 255f * ambientIntensity,
+            1f
         );
+
+        // 环境底
+        spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
+        spriteBatch.Draw(_pixel,
+            new Rectangle(0, 0, _lightMaskRenderTarget.Width, _lightMaskRenderTarget.Height),
+            ambientColor);
+        spriteBatch.End();
+
+        // 点光
+        spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Additive);
 
         foreach (var entity in _lightSourceSet.GetEntities())
         {
@@ -436,10 +445,11 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                 scaledWidth, scaledHeight
             );
 
-            // 绘制径向渐变光照
-            spriteBatch.Draw(_lightTexture, lightRect, ambientColor * light.Intensity);
-            //Vector2 origin = new Vector2(lightTexture.Width / 2, lightTexture.Height / 2);
-            //spriteBatch.Draw(_lightTexture, , null, Color.White, 0, origin, 0.5f, SpriteEffects.None, 0);
+            // 支持彩色光：若 LightSource 有 Color 则使用；否则默认白
+            // 火炬的颜色
+            var color = new Color(1f, 0.74f, 0.32f);
+            // 乘以强度
+            spriteBatch.Draw(_lightTexture, lightRect, color * light.Intensity);
         }
 
         spriteBatch.End();
@@ -690,4 +700,23 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         var polygon = BuildTileOutline(tileX + 0.5f, tileY + 0.5f, camera);
         spriteBatch.DrawPolygon(Vector2.Zero, polygon, Color.Yellow, 3f);
     }
+
+    // 可选：时间色调（晨昏暖色、夜晚偏蓝）
+    private static Color ComputeAmbientTint(float hour)
+    {
+        if (hour < 5f || hour >= 21f) return new Color(0.05f, 0.08f, 0.15f); // 深夜
+        if (hour < 7f) return Color.Lerp(new Color(0.05f, 0.08f, 0.15f), new Color(0.95f, 0.65f, 0.40f), (hour - 5f) / 2f); // 日出
+        if (hour < 17f) return new Color(1f, 1f, 1f); // 日间
+        if (hour < 19f) return Color.Lerp(new Color(1f, 1f, 1f), new Color(0.95f, 0.55f, 0.30f), (hour - 17f) / 2f); // 黄昏
+        return Color.Lerp(new Color(0.95f, 0.55f, 0.30f), new Color(0.05f, 0.08f, 0.15f), (hour - 19f) / 2f); // 入夜
+    }
+
+    private static readonly BlendState MultiplyBlendState = new BlendState
+    {
+        ColorSourceBlend = Blend.DestinationColor,
+        ColorDestinationBlend = Blend.Zero,
+        AlphaSourceBlend = Blend.One,
+        AlphaDestinationBlend = Blend.Zero
+    };
+
 }
