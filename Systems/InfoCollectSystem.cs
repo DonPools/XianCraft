@@ -76,6 +76,7 @@ public class InfoCollectSystem : AEntitySetSystem<GameTime>
                     $"相机位置: {camera.Position.X:F1}, {camera.Position.Y:F1}\n" +
                     $"相机缩放: {camera.Zoom}\n" +
                     $"Viewport: {camera.ViewportWidth} x {camera.ViewportHeight}\n" +
+                    $"时间像素: {camera.ViewportWidth/camera.Zoom:F1} x {camera.ViewportHeight/camera.Zoom:F1}\n" +
                     $"鼠标位置: {mouseInput.Position.X:F1}, {mouseInput.Position.Y:F1}\n" +
                     $"鼠标世界位置: {mouseInput.WorldPosition.X:F1}, {mouseInput.WorldPosition.Y:F1}\n";
 

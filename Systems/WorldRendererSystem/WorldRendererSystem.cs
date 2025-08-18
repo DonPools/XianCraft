@@ -29,7 +29,7 @@ public class MetaTile
     public MetaTileModel Default { get; set; }
     public Dictionary<string, MetaTileModel> Models { get; set; } = new();
 
-    public MetaTileModel GetMetaTileModel(string bitMask="")
+    public MetaTileModel GetMetaTileModel(string bitMask = "")
     {
         if (string.IsNullOrEmpty(bitMask))
             return Default;
@@ -51,6 +51,7 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
     private EntitySet _mouseInputSet;
     private EntitySet _playerSet;
     private EntitySet _pathDataSet;
+    private EntitySet _lightSourceSet;
 
     private Entity _cameraEntity => _cameraSet.GetEntities().ToArray().FirstOrDefault();
     private Entity _mouseEntity => _mouseInputSet.GetEntities().ToArray().FirstOrDefault();
@@ -58,12 +59,19 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
     private string _loadedMapHash = "";
 
+    private GraphicsDevice _graphicsDevice;
+    private RenderTarget2D _sceneRenderTarget;
+    private RenderTarget2D _lightMaskRenderTarget;
+    private Texture2D _pixel; // 1x1白色像素纹理
+    private Texture2D _lightTexture;
+
     private TiledMap _metaMap;
     private TiledMapRenderer _mapRenderer;
     private Dictionary<string, MetaTile> _metaTiles = new Dictionary<string, MetaTile>();
 
     private TiledMapEffect _effect;
     private EntitySet _animateRendererSet;
+
 
     public WorldRendererSystem(World world, GraphicsDevice graphicsDevice, TiledMap metaMap, Effect effect) :
         base(world.GetEntities().With<TerrainMap>().AsSet())
@@ -74,14 +82,30 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
         _mouseInputSet = _world.GetEntities().With<MouseInput>().AsSet();
         _animateRendererSet = _world.GetEntities().With<Position>().With<AnimateState>().AsSet();
         _pathDataSet = _world.GetEntities().With<PathData>().AsSet();
+        _lightSourceSet = _world.GetEntities().With<LightSource>().With<Position>().AsSet();
 
+        _graphicsDevice = graphicsDevice;
         _mapRenderer = new TiledMapRenderer(graphicsDevice);
         _metaMap = metaMap;
         _effect = new TiledMapEffect(effect);
         _playerSet = _world.GetEntities().With<Player>().AsSet();
 
         LoadMetaTiles(metaMap);
+
         _mapRenderer.LoadMap(_metaMap);
+        _sceneRenderTarget = new RenderTarget2D(
+            _graphicsDevice,
+            _graphicsDevice.PresentationParameters.BackBufferWidth,
+            _graphicsDevice.PresentationParameters.BackBufferHeight
+        );
+        _lightMaskRenderTarget = new RenderTarget2D(
+            _graphicsDevice,
+            _graphicsDevice.PresentationParameters.BackBufferWidth,
+            _graphicsDevice.PresentationParameters.BackBufferHeight
+        );
+        _lightTexture = CreateLightTexture(256);
+        _pixel = new Texture2D(_graphicsDevice, 1, 1);
+        _pixel.SetData(new[] { Color.White });
     }
 
     private void LoadMetaTiles(TiledMap metaMap)
@@ -262,6 +286,9 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
             BuildTiledMap(terrainMap);
         }
 
+        _graphicsDevice.SetRenderTarget(_sceneRenderTarget);
+        _graphicsDevice.Clear(Color.CornflowerBlue);
+
         DrawMap(terrainMap, camera);
 
         spriteBatch.Begin(
@@ -274,7 +301,146 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
 
         DrawEntities(spriteBatch, camera);
         DrawPathData(spriteBatch, camera);
-        DrawMouse(spriteBatch, camera);
+
+        spriteBatch.End();
+
+        DrawLighting(spriteBatch, camera);
+
+        _graphicsDevice.SetRenderTarget(null);
+        _graphicsDevice.Clear(Color.Black);
+        spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+
+        spriteBatch.Draw(_sceneRenderTarget, Vector2.Zero, Color.White);
+        spriteBatch.Draw(_lightMaskRenderTarget, Vector2.Zero, Color.White);
+
+        spriteBatch.End();
+
+        //DrawMouse(spriteBatch, camera);
+    }
+
+    private Texture2D CreateLightTexture(int size)
+    {
+        var tex = new Texture2D(_graphicsDevice, size, size);
+        var data = new Color[size * size];
+
+        float center = (size - 1) / 2f;
+        float radius = center;
+
+        const float innerCore = 0.30f;
+        const float falloffExponent = 1f;
+        const float gamma = 1.0f;
+        const int quantizeSteps = 10;   // 若想彻底去抖动，可设 0
+        const bool dither = true;
+
+        const float ditherStrength = 0.80f; // 新增: 0=关闭抖动影响, 1=原始强度, 0.3 轻微抖动
+        // 4x4 Bayer (0..15)
+        int[,] bayer4 =
+        {
+            { 0,  8,  2, 10 },
+            {12,  4, 14,  6 },
+            { 3, 11,  1,  9 },
+            {15,  7, 13,  5 }
+        };
+
+        for (int y = 0; y < size; y++)
+        {
+            float dy = y - center;
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - center;
+                float dist = MathF.Sqrt(dx * dx + dy * dy);
+                if (dist > radius)
+                {
+                    data[y * size + x] = Color.Transparent;
+                    continue;
+                }
+
+                float norm = dist / radius;
+                float a = norm <= innerCore
+                    ? 1f
+                    : MathF.Pow(1f - (norm - innerCore) / (1f - innerCore), falloffExponent);
+
+                a = MathF.Pow(a, gamma);
+
+                if (quantizeSteps > 0)
+                {
+                    float scaled = a * quantizeSteps;
+                    int baseLevel = (int)MathF.Floor(scaled);
+                    float frac = scaled - baseLevel;
+
+                    if (dither && baseLevel < quantizeSteps)
+                    {
+                        // 原阈值 raw (0..1)，缩放到以 0.5 为中心，压缩幅度
+                        float raw = (bayer4[y & 3, x & 3] + 0.5f) / 16f;
+                        float threshold = 0.5f + (raw - 0.5f) * ditherStrength;
+                        scaled = frac < threshold ? baseLevel : baseLevel + 1;
+                    }
+                    else
+                    {
+                        scaled = MathF.Round(scaled);
+                    }
+
+                    a = Math.Clamp(scaled / quantizeSteps, 0f, 1f);
+                }
+
+                data[y * size + x] = new Color(1f, 1f, 1f, a);
+            }
+        }
+
+        tex.SetData(data);
+        return tex;
+    }
+
+    private void DrawLighting(SpriteBatch spriteBatch, Camera camera)
+    {
+        _graphicsDevice.SetRenderTarget(_lightMaskRenderTarget);
+        _graphicsDevice.Clear(Color.Transparent);
+
+        // 计算当前时间的光照参数
+        var timeOfDay = 0.95f;
+        float daylightIntensity = MathF.Sin(timeOfDay * MathHelper.Pi); // 0.0(午夜) -> 1.0(正午)
+        Color ambientColor = new Color(0, 0, 0, 1 - daylightIntensity * 0.8f); // 黑夜时黑色更浓
+
+        spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+        // 绘制全屏黑色遮罩（透明度随时间变化）
+        spriteBatch.Draw(_pixel, new Rectangle(0, 0, _lightMaskRenderTarget.Width, _lightMaskRenderTarget.Height), ambientColor);
+
+        spriteBatch.End();
+        spriteBatch.Begin(SpriteSortMode.Immediate,
+            new BlendState()
+            {
+                ColorDestinationBlend = Blend.One,
+                ColorSourceBlend = Blend.One,
+                AlphaDestinationBlend = Blend.InverseSourceAlpha,
+                AlphaSourceBlend = Blend.Zero
+            }
+        );
+
+        foreach (var entity in _lightSourceSet.GetEntities())
+        {
+            var light = entity.Get<LightSource>();
+            var position = entity.Get<Position>();
+
+            var lightPos = Helper.WorldToScreenCoords(
+                position.Value,
+                _metaMap.TileWidth, _metaMap.TileHeight,
+                camera
+            );
+
+            int scaledWidth = (int)(light.Range * camera.Zoom * _metaMap.TileWidth);
+            int scaledHeight = (int)(light.Range * camera.Zoom * _metaMap.TileHeight);
+
+            Rectangle lightRect = new Rectangle(
+                (int)(lightPos.X - scaledWidth / 2),
+                (int)(lightPos.Y - scaledHeight / 2),
+                scaledWidth, scaledHeight
+            );
+
+            // 绘制径向渐变光照
+            spriteBatch.Draw(_lightTexture, lightRect, ambientColor * light.Intensity);
+            //Vector2 origin = new Vector2(lightTexture.Width / 2, lightTexture.Height / 2);
+            //spriteBatch.Draw(_lightTexture, , null, Color.White, 0, origin, 0.5f, SpriteEffects.None, 0);
+        }
 
         spriteBatch.End();
     }
@@ -485,12 +651,12 @@ public class WorldRendererSystem : AEntitySetSystem<SpriteBatch>
                 Color.Red,
                 1, 1f
             );
-            */
-
+            
             var outline = BuildTileOutline(position.Value.X, position.Value.Y, camera);
             spriteBatch.DrawPolygon(Vector2.Zero, outline, Color.White, 2f,
                 Math.Clamp((position.Value.X + position.Value.Y + 1) / 2000f, 0f, 1f) * 0.99f
             );
+            */
         }
     }
 

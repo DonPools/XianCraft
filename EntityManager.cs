@@ -82,6 +82,11 @@ public class EntityManager
             Value = Direction.Down,
             Angle = MathHelper.PiOver2, // 90度，向下
         });
+        entity.Set(new LightSource{
+            LightColor = Color.Red,
+            Intensity = 0.9f,
+            Range = 10.0f,
+        });
         entity.Set(animateState);
         return entity;
     }

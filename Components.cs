@@ -195,3 +195,14 @@ public class DebugInfo
 {
     public string SystemInfo { get; set; } = string.Empty;
 }
+
+public class LightSource
+{
+    public Color LightColor;
+    public float Intensity; // 光照强度 (0.0 - 1.0)
+    public float Range;    // 光照半径
+
+    // 可选：添加渐变效果
+    public bool AnimateColor = false;
+    public Color ColorVariation = new Color(1f, 0.8f, 0.5f); // 火把特有的暖色变化
+}
